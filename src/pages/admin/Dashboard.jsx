@@ -6,6 +6,7 @@ import {
   BookOpen,
   TrendingUp,
   ArrowRight,
+  AlertCircle,
 } from "lucide-react";
 import { useAuth } from "@hooks/useAuth";
 import Button from "@components/common/Button";
@@ -14,12 +15,14 @@ import { getCertificates, getStockSummary } from "@api/certificateApi";
 import { getTeachers } from "@api/teacherApi";
 import { getModules } from "@api/moduleApi";
 import { formatNumber, formatDate } from "@utils/formatters";
+import { BRANCHES, DATE_FORMATS } from "@utils/constants";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { getUserDisplayName } = useAuth();
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [stats, setStats] = useState({
     totalCertificates: 0,
     totalTeachers: 0,
@@ -30,6 +33,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       setLoading(true);
+      setError(null);
 
       try {
         const [certificatesRes, teachersRes, modulesRes, stockRes] =
@@ -40,21 +44,39 @@ const Dashboard = () => {
             getStockSummary(),
           ]);
 
-        // Process stock summary - handle nested object structure
+        // Check for critical failures
+        const failures = [
+          certificatesRes,
+          teachersRes,
+          modulesRes,
+          stockRes,
+        ].filter((res) => res.status === "rejected");
+
+        if (failures.length > 0) {
+          console.warn("Some dashboard data failed to load:", failures);
+        }
+
+        // Process stock summary with proper validation
         let processedStock = null;
         if (stockRes.status === "fulfilled" && stockRes.value?.data) {
-          const rawStock = stockRes.value.data;
+          const stockData = stockRes.value.data;
 
-          // Check if it's the nested structure (total_stock, grand_total)
-          if (
-            rawStock.total_stock &&
-            typeof rawStock.total_stock === "object"
-          ) {
-            processedStock = rawStock.total_stock;
-          } else {
-            // Direct branch structure (SND, MKW, KBP)
-            processedStock = rawStock;
-          }
+          // Backend should return: { SND: number, MKW: number, KBP: number }
+          // Validate that all values are numbers
+          processedStock = {};
+          Object.keys(BRANCHES).forEach((branch) => {
+            const value = stockData[branch];
+            if (typeof value === "number") {
+              processedStock[branch] = value;
+            } else {
+              console.error(
+                `Invalid stock value for ${branch}:`,
+                value,
+                "- expected number",
+              );
+              processedStock[branch] = 0;
+            }
+          });
         }
 
         setStats({
@@ -72,8 +94,9 @@ const Dashboard = () => {
               : 0,
           stockSummary: processedStock,
         });
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
+      } catch (err) {
+        console.error("Failed to fetch dashboard data:", err);
+        setError("Failed to load dashboard data. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -103,11 +126,15 @@ const Dashboard = () => {
     },
     {
       title: "Active Branches",
-      value: "3",
+      value: Object.keys(BRANCHES).length,
       icon: TrendingUp,
       gradient: "from-orange-500 to-red-500",
     },
   ];
+
+  // =====================================================
+  // LOADING STATE
+  // =====================================================
 
   if (loading) {
     return (
@@ -116,6 +143,37 @@ const Dashboard = () => {
       </div>
     );
   }
+
+  // =====================================================
+  // ERROR STATE
+  // =====================================================
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center max-w-md">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-status-error/10 rounded-full mb-4">
+            <AlertCircle className="w-8 h-8 text-status-error" />
+          </div>
+          <h3 className="text-lg font-semibold text-primary mb-2">
+            Failed to Load Dashboard
+          </h3>
+          <p className="text-secondary mb-4">{error}</p>
+          <Button
+            variant="primary"
+            onClick={() => window.location.reload()}
+            size="medium"
+          >
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // =====================================================
+  // MAIN RENDER
+  // =====================================================
 
   return (
     <div className="space-y-4">
@@ -159,36 +217,29 @@ const Dashboard = () => {
       </div>
 
       {/* Stock Summary */}
-      {stats.stockSummary && (
+      {stats.stockSummary && Object.keys(stats.stockSummary).length > 0 && (
         <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-4 border border-gray-200/50 dark:border-white/10 shadow-lg">
           <h2 className="text-sm font-semibold text-primary mb-3">
             Stock Summary by Branch
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {Object.entries(stats.stockSummary).map(([branch, stock]) => {
-              // Handle if stock is still an object or a number
-              const stockValue = typeof stock === "object" ? 0 : stock;
-
-              return (
-                <div
-                  key={branch}
-                  className="backdrop-blur-sm bg-white/20 dark:bg-white/5 p-3 rounded-xl border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-sm font-semibold text-primary">
-                      {branch}
-                    </h3>
-                    <FileText className="w-4 h-4 text-secondary" />
-                  </div>
-                  <p className="text-xl font-bold text-primary">
-                    {formatNumber(stockValue)}
-                  </p>
-                  <p className="text-xs text-secondary">
-                    Available certificates
-                  </p>
+            {Object.entries(stats.stockSummary).map(([branch, stock]) => (
+              <div
+                key={branch}
+                className="backdrop-blur-sm bg-white/20 dark:bg-white/5 p-3 rounded-xl border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-sm font-semibold text-primary">
+                    {branch}
+                  </h3>
+                  <FileText className="w-4 h-4 text-secondary" />
                 </div>
-              );
-            })}
+                <p className="text-xl font-bold text-primary">
+                  {formatNumber(stock)}
+                </p>
+                <p className="text-xs text-secondary">Available certificates</p>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -212,7 +263,7 @@ const Dashboard = () => {
               </p>
             </div>
             <p className="text-xs text-secondary whitespace-nowrap">
-              {formatDate(new Date(), "dd MMM")}
+              {formatDate(new Date(), DATE_FORMATS.DISPLAY)}
             </p>
           </div>
 
@@ -227,7 +278,7 @@ const Dashboard = () => {
               <p className="text-xs text-secondary">Teacher added to MKW</p>
             </div>
             <p className="text-xs text-secondary whitespace-nowrap">
-              {formatDate(new Date(), "dd MMM")}
+              {formatDate(new Date(), DATE_FORMATS.DISPLAY)}
             </p>
           </div>
 
@@ -242,7 +293,7 @@ const Dashboard = () => {
               </p>
             </div>
             <p className="text-xs text-secondary whitespace-nowrap">
-              {formatDate(new Date(), "dd MMM")}
+              {formatDate(new Date(), DATE_FORMATS.DISPLAY)}
             </p>
           </div>
         </div>

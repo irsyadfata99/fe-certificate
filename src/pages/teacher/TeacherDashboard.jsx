@@ -8,6 +8,7 @@ import {
   BookOpen,
   TrendingUp,
   Award,
+  AlertCircle,
 } from "lucide-react";
 import { useAuth } from "@hooks/useAuth";
 import Button from "@components/common/Button";
@@ -19,12 +20,14 @@ import {
   formatBranch,
   formatDivision,
 } from "@utils/formatters";
+import { DATE_FORMATS } from "@utils/constants";
 
 const TeacherDashboard = () => {
   const navigate = useNavigate();
   const { getUserDisplayName, getUserBranch, getUserDivision } = useAuth();
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [stats, setStats] = useState({
     totalPrinted: 0,
     todayPrinted: 0,
@@ -35,6 +38,7 @@ const TeacherDashboard = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       setLoading(true);
+      setError(null);
 
       try {
         const historyRes = await getPrintHistory({ limit: 5, page: 1 });
@@ -61,8 +65,9 @@ const TeacherDashboard = () => {
             recentHistory: history.slice(0, 5),
           });
         }
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
+      } catch (err) {
+        console.error("Failed to fetch dashboard data:", err);
+        setError("Failed to load dashboard data. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -91,9 +96,13 @@ const TeacherDashboard = () => {
       value: formatNumber(stats.todayPrinted),
       icon: Printer,
       gradient: "from-purple-500 to-pink-500",
-      description: formatDate(new Date(), "dd MMM yyyy"),
+      description: formatDate(new Date(), DATE_FORMATS.DISPLAY),
     },
   ];
+
+  // =====================================================
+  // LOADING STATE
+  // =====================================================
 
   if (loading) {
     return (
@@ -102,6 +111,37 @@ const TeacherDashboard = () => {
       </div>
     );
   }
+
+  // =====================================================
+  // ERROR STATE
+  // =====================================================
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center max-w-md">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-status-error/10 rounded-full mb-4">
+            <AlertCircle className="w-8 h-8 text-status-error" />
+          </div>
+          <h3 className="text-lg font-semibold text-primary mb-2">
+            Failed to Load Dashboard
+          </h3>
+          <p className="text-secondary mb-4">{error}</p>
+          <Button
+            variant="primary"
+            onClick={() => window.location.reload()}
+            size="medium"
+          >
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // =====================================================
+  // MAIN RENDER
+  // =====================================================
 
   return (
     <div className="space-y-4">
@@ -236,7 +276,7 @@ const TeacherDashboard = () => {
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-secondary">
-                    {formatDate(item.ptc_date, "dd MMM")}
+                    {formatDate(item.ptc_date, DATE_FORMATS.DISPLAY)}
                   </p>
                   <p className="text-xs text-secondary">
                     {item.certificate_id || "N/A"}

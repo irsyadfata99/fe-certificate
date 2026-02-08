@@ -55,6 +55,11 @@ export const useApi = (apiFunction, options = {}) => {
    */
   const execute = useCallback(
     async (...args) => {
+      // Check if component is still mounted before starting
+      if (!isMounted.current) {
+        return;
+      }
+
       // Increment request ID
       const requestId = ++latestRequestId.current;
 

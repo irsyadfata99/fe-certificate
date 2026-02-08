@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, LogIn, User, Lock } from "lucide-react";
 import { useAuth } from "@hooks/useAuth";
 import Button from "@components/common/Button";
@@ -12,8 +11,7 @@ import { ENV } from "@config/env";
  * Handles user authentication for both Admin and Teacher roles
  */
 const Login = () => {
-  const navigate = useNavigate();
-  const { login, isLoading } = useAuth();
+  const { login } = useAuth();
 
   // =====================================================
   // STATE
@@ -26,6 +24,7 @@ const Login = () => {
 
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // =====================================================
   // HANDLERS
@@ -74,10 +73,16 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Prevent double submission
+    if (isSubmitting) return;
+
     // Validate form
     if (!validateForm()) {
       return;
     }
+
+    // Set submitting state to lock form
+    setIsSubmitting(true);
 
     try {
       // Call login from useAuth hook
@@ -86,8 +91,11 @@ const Login = () => {
         password: formData.password,
       });
 
-      // Redirect handled by useAuth hook based on role
+      // Keep loading state - navigation will happen in useAuth
+      // Don't set isSubmitting to false here
     } catch (error) {
+      // Only unlock form on error
+      setIsSubmitting(false);
       // Error toast handled by API error handler
       console.error("Login failed:", error);
     }
@@ -141,7 +149,7 @@ const Login = () => {
               onChange={handleChange}
               placeholder="Enter your username"
               error={errors.username}
-              disabled={isLoading}
+              disabled={isSubmitting}
               required
               prefixIcon={<User className="w-5 h-5" />}
               autoComplete="username"
@@ -158,7 +166,7 @@ const Login = () => {
                 onChange={handleChange}
                 placeholder="Enter your password"
                 error={errors.password}
-                disabled={isLoading}
+                disabled={isSubmitting}
                 required
                 prefixIcon={<Lock className="w-5 h-5" />}
                 suffixIcon={
@@ -167,6 +175,7 @@ const Login = () => {
                     onClick={togglePasswordVisibility}
                     className="p-1 hover:bg-primary/10 rounded transition-colors"
                     tabIndex={-1}
+                    disabled={isSubmitting}
                   >
                     {showPassword ? (
                       <EyeOff className="w-5 h-5" />
@@ -185,12 +194,12 @@ const Login = () => {
               variant="primary"
               size="large"
               fullWidth
-              loading={isLoading}
-              disabled={isLoading}
+              loading={isSubmitting}
+              disabled={isSubmitting}
               icon={<LogIn className="w-5 h-5" />}
               className="mt-6"
             >
-              {isLoading ? "Signing in..." : "Sign In"}
+              {isSubmitting ? "Signing in..." : "Sign In"}
             </Button>
           </form>
 
