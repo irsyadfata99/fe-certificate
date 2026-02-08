@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Menu, X, User, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import ThemeToggle from "./ThemeToggle";
+import ThemeToggle from "../../components/common/ThemeToggle";
 import { useAuth } from "@hooks/useAuth";
 import { ENV } from "@config/env";
 
