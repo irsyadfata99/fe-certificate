@@ -242,37 +242,6 @@ const TeacherDashboard = () => {
           );
         })}
       </div>
-
-      {/* Quick Actions */}
-      <Card title="Quick Actions" padding="default">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {quickActions.map((action, index) => {
-            const Icon = action.icon;
-            return (
-              <div
-                key={index}
-                onClick={() => navigate(action.path)}
-                className="p-6 bg-surface border border-secondary/20 rounded-lg hover:border-primary hover:shadow-md transition-all cursor-pointer group"
-              >
-                <div className="flex items-start gap-4">
-                  <div className={`p-3 rounded-lg ${action.color}`}>
-                    <Icon className="w-6 h-6" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-primary group-hover:text-primary transition-colors">
-                      {action.label}
-                    </h3>
-                    <p className="text-sm text-secondary mt-1">
-                      {action.description}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </Card>
-
       {/* Recent Print History */}
       <Card title="Recent Print History" padding="default">
         {stats.recentHistory.length === 0 ? (
@@ -338,44 +307,6 @@ const TeacherDashboard = () => {
             </div>
           </div>
         )}
-      </Card>
-
-      {/* Tips & Info */}
-      <Card title="Tips & Information" padding="default">
-        <div className="space-y-3">
-          <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <div className="text-blue-600 dark:text-blue-400 mt-1">💡</div>
-            <div>
-              <p className="text-sm font-medium text-primary">Quick Tip</p>
-              <p className="text-xs text-secondary mt-1">
-                Make sure to select the correct module for each student based on
-                their age and division.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-            <div className="text-green-600 dark:text-green-400 mt-1">✓</div>
-            <div>
-              <p className="text-sm font-medium text-primary">Best Practice</p>
-              <p className="text-xs text-secondary mt-1">
-                Double-check student names for spelling accuracy before printing
-                certificates.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-            <div className="text-purple-600 dark:text-purple-400 mt-1">📋</div>
-            <div>
-              <p className="text-sm font-medium text-primary">Remember</p>
-              <p className="text-xs text-secondary mt-1">
-                All printed certificates are logged and can be viewed in your
-                print history.
-              </p>
-            </div>
-          </div>
-        </div>
       </Card>
     </div>
   );

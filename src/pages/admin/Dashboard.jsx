@@ -233,28 +233,6 @@ const Dashboard = () => {
         </Card>
       )}
 
-      {/* Quick Actions */}
-      <Card title="Quick Actions" padding="default">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {quickActions.map((action, index) => {
-            const Icon = action.icon;
-            return (
-              <Button
-                key={index}
-                variant={action.variant}
-                size="large"
-                fullWidth
-                onClick={() => navigate(action.path)}
-                icon={<Icon className="w-5 h-5" />}
-                iconPosition="left"
-              >
-                {action.label}
-              </Button>
-            );
-          })}
-        </div>
-      </Card>
-
       {/* Recent Activity */}
       <Card title="Recent Activity" padding="default">
         <div className="space-y-4">
@@ -321,63 +299,6 @@ const Dashboard = () => {
           </Button>
         </div>
       </Card>
-
-      {/* System Info */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card title="System Information" padding="default">
-          <div className="space-y-3">
-            <div className="flex justify-between items-center py-2 border-b border-secondary/10">
-              <span className="text-sm text-secondary">Current User</span>
-              <span className="text-sm font-medium text-primary">
-                {user?.username}
-              </span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-secondary/10">
-              <span className="text-sm text-secondary">Role</span>
-              <span className="text-sm font-medium text-primary">
-                Administrator
-              </span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-secondary/10">
-              <span className="text-sm text-secondary">Login Time</span>
-              <span className="text-sm font-medium text-primary">
-                {formatDate(new Date(), "dd MMM yyyy HH:mm")}
-              </span>
-            </div>
-            <div className="flex justify-between items-center py-2">
-              <span className="text-sm text-secondary">System Status</span>
-              <span className="text-sm font-medium text-status-success">
-                ✓ All Systems Operational
-              </span>
-            </div>
-          </div>
-        </Card>
-
-        <Card title="Quick Stats" padding="default">
-          <div className="space-y-3">
-            <div className="flex justify-between items-center py-2 border-b border-secondary/10">
-              <span className="text-sm text-secondary">Certificates Today</span>
-              <span className="text-sm font-medium text-primary">24</span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-secondary/10">
-              <span className="text-sm text-secondary">Active Teachers</span>
-              <span className="text-sm font-medium text-primary">
-                {formatNumber(stats.totalTeachers)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-secondary/10">
-              <span className="text-sm text-secondary">Available Modules</span>
-              <span className="text-sm font-medium text-primary">
-                {formatNumber(stats.totalModules)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center py-2">
-              <span className="text-sm text-secondary">Last Activity</span>
-              <span className="text-sm font-medium text-primary">Just now</span>
-            </div>
-          </div>
-        </Card>
-      </div>
     </div>
   );
 };
