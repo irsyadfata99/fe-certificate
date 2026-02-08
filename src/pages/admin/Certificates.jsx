@@ -46,6 +46,7 @@ const Certificates = () => {
   const [certificates, setCertificates] = useState([]);
   const [stockSummary, setStockSummary] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [summaryLoading, setSummaryLoading] = useState(true);
   const [error, setError] = useState(null);
   const [exporting, setExporting] = useState(false);
 
@@ -213,8 +214,6 @@ const Certificates = () => {
       if (response.success) {
         let fetchedCertificates = response.data || [];
 
-        // Client-side branch filter only (untuk display purposes)
-        // Tidak menghilangkan data, hanya untuk highlighting
         setCertificates(fetchedCertificates);
 
         // Update pagination with correct total from backend
@@ -240,6 +239,7 @@ const Certificates = () => {
   ]);
 
   const fetchStockSummary = useCallback(async () => {
+    setSummaryLoading(true);
     try {
       const response = await getStockSummary();
 
@@ -269,6 +269,8 @@ const Certificates = () => {
       }
     } catch (err) {
       console.error("Failed to fetch stock summary:", err);
+    } finally {
+      setSummaryLoading(false);
     }
   }, []);
 
@@ -491,6 +493,7 @@ const Certificates = () => {
 
   const handleBranchFilter = (branch) => {
     setSelectedBranch(branch);
+    setPagination((prev) => ({ ...prev, currentPage: 1 }));
   };
 
   const handleDateFilterChange = (field, value) => {
@@ -522,18 +525,10 @@ const Certificates = () => {
   // COMPUTED VALUES
   // =====================================================
 
-  // Filtered certificates for display (client-side branch highlighting only)
-  const displayCertificates = useMemo(() => {
-    if (selectedBranch === "all") {
-      return certificates;
-    }
+  // Display certificates - no client-side filtering needed
+  const displayCertificates = certificates;
 
-    // Don't filter out, just return all for now
-    // Branch filter is just for visual highlighting
-    return certificates;
-  }, [certificates, selectedBranch]);
-
-  // Get branch data for table display
+  // Get branch data for table display based on selected branch
   const getBranchData = useCallback(
     (cert) => {
       if (selectedBranch === "all") {
@@ -657,6 +652,122 @@ const Certificates = () => {
             </Button>
           </div>
         </div>
+      </div>
+
+      {/* Stock Summary Cards */}
+      <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg">
+        <div className="flex items-center gap-2 mb-4">
+          <Package className="w-5 h-5 text-primary" />
+          <h2 className="text-lg font-semibold text-primary">Stock Summary</h2>
+        </div>
+
+        {summaryLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Spinner size="medium" />
+          </div>
+        ) : stockSummary ? (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* SND Card */}
+            <div className="backdrop-blur-sm bg-gradient-to-br from-green-500/10 to-emerald-500/10 p-4 rounded-xl border border-green-500/20">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-3 h-3 rounded-full bg-gradient-to-br from-green-500 to-emerald-500"></span>
+                <h3 className="text-sm font-semibold text-primary">
+                  SND (Sunda)
+                </h3>
+              </div>
+              <div className="space-y-2">
+                <div>
+                  <p className="text-xs text-secondary">Certificates</p>
+                  <p className="text-2xl font-bold text-primary">
+                    {formatNumber(stockSummary.snd.certificates)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-secondary">Medals</p>
+                  <p className="text-xl font-semibold text-primary">
+                    {formatNumber(stockSummary.snd.medals)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* MKW Card */}
+            <div className="backdrop-blur-sm bg-gradient-to-br from-purple-500/10 to-pink-500/10 p-4 rounded-xl border border-purple-500/20">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-3 h-3 rounded-full bg-gradient-to-br from-purple-500 to-pink-500"></span>
+                <h3 className="text-sm font-semibold text-primary">
+                  MKW (Mekarwangi)
+                </h3>
+              </div>
+              <div className="space-y-2">
+                <div>
+                  <p className="text-xs text-secondary">Certificates</p>
+                  <p className="text-2xl font-bold text-primary">
+                    {formatNumber(stockSummary.mkw.certificates)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-secondary">Medals</p>
+                  <p className="text-xl font-semibold text-primary">
+                    {formatNumber(stockSummary.mkw.medals)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* KBP Card */}
+            <div className="backdrop-blur-sm bg-gradient-to-br from-orange-500/10 to-red-500/10 p-4 rounded-xl border border-orange-500/20">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-3 h-3 rounded-full bg-gradient-to-br from-orange-500 to-red-500"></span>
+                <h3 className="text-sm font-semibold text-primary">
+                  KBP (Kota Baru Parahyangan)
+                </h3>
+              </div>
+              <div className="space-y-2">
+                <div>
+                  <p className="text-xs text-secondary">Certificates</p>
+                  <p className="text-2xl font-bold text-primary">
+                    {formatNumber(stockSummary.kbp.certificates)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-secondary">Medals</p>
+                  <p className="text-xl font-semibold text-primary">
+                    {formatNumber(stockSummary.kbp.medals)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Grand Total Card */}
+            <div className="backdrop-blur-sm bg-gradient-to-br from-blue-500/10 to-cyan-500/10 p-4 rounded-xl border border-blue-500/20">
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp className="w-4 h-4 text-blue-500" />
+                <h3 className="text-sm font-semibold text-primary">
+                  Grand Total
+                </h3>
+              </div>
+              <div className="space-y-2">
+                <div>
+                  <p className="text-xs text-secondary">Total Certificates</p>
+                  <p className="text-2xl font-bold text-primary">
+                    {formatNumber(stockSummary.grandTotal.certificates)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-secondary">Total Medals</p>
+                  <p className="text-xl font-semibold text-primary">
+                    {formatNumber(stockSummary.grandTotal.medals)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-8 text-secondary">
+            No stock data available
+          </div>
+        )}
       </div>
 
       {/* Filters & Search */}
@@ -1069,7 +1180,7 @@ const Certificates = () => {
           <div className="backdrop-blur-sm bg-white/20 dark:bg-white/5 p-4 rounded-xl border border-gray-200/30 dark:border-white/5">
             <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-gradient-to-br from-green-500 to-emerald-500"></span>
-              SND (Sudirman)
+              SND (Sunda)
             </h4>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -1094,82 +1205,6 @@ const Certificates = () => {
                   type="number"
                   name="jumlah_medali_snd"
                   value={addForm.values.jumlah_medali_snd}
-                  onChange={addForm.handleChange}
-                  min="0"
-                  placeholder="0"
-                  className="w-full px-3 py-2 bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-primary placeholder-secondary focus:outline-none focus:ring-2 focus:ring-primary/50"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* MKW Section */}
-          <div className="backdrop-blur-sm bg-white/20 dark:bg-white/5 p-4 rounded-xl border border-gray-200/30 dark:border-white/5">
-            <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-gradient-to-br from-purple-500 to-pink-500"></span>
-              MKW (Makwana)
-            </h4>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm text-secondary mb-1">
-                  Certificates
-                </label>
-                <input
-                  type="number"
-                  name="jumlah_sertifikat_mkw"
-                  value={addForm.values.jumlah_sertifikat_mkw}
-                  onChange={addForm.handleChange}
-                  min="0"
-                  placeholder="0"
-                  className="w-full px-3 py-2 bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-primary placeholder-secondary focus:outline-none focus:ring-2 focus:ring-primary/50"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-secondary mb-1">
-                  Medals
-                </label>
-                <input
-                  type="number"
-                  name="jumlah_medali_mkw"
-                  value={addForm.values.jumlah_medali_mkw}
-                  onChange={addForm.handleChange}
-                  min="0"
-                  placeholder="0"
-                  className="w-full px-3 py-2 bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-primary placeholder-secondary focus:outline-none focus:ring-2 focus:ring-primary/50"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* KBP Section */}
-          <div className="backdrop-blur-sm bg-white/20 dark:bg-white/5 p-4 rounded-xl border border-gray-200/30 dark:border-white/5">
-            <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-gradient-to-br from-orange-500 to-red-500"></span>
-              KBP (Kopo Permai)
-            </h4>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm text-secondary mb-1">
-                  Certificates
-                </label>
-                <input
-                  type="number"
-                  name="jumlah_sertifikat_kbp"
-                  value={addForm.values.jumlah_sertifikat_kbp}
-                  onChange={addForm.handleChange}
-                  min="0"
-                  placeholder="0"
-                  className="w-full px-3 py-2 bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-primary placeholder-secondary focus:outline-none focus:ring-2 focus:ring-primary/50"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-secondary mb-1">
-                  Medals
-                </label>
-                <input
-                  type="number"
-                  name="jumlah_medali_kbp"
-                  value={addForm.values.jumlah_medali_kbp}
                   onChange={addForm.handleChange}
                   min="0"
                   placeholder="0"
@@ -1267,8 +1302,8 @@ const Certificates = () => {
                 onChange={migrateForm.handleChange}
                 className="w-full px-4 py-2 bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
               >
-                <option value="MKW">MKW (Makwana)</option>
-                <option value="KBP">KBP (Kopo Permai)</option>
+                <option value="MKW">MKW (Mekarwangi)</option>
+                <option value="KBP">KBP (Kota Baru Parahyangan)</option>
               </select>
             </div>
 
