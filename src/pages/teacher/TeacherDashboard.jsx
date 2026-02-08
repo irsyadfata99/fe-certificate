@@ -41,6 +41,7 @@ const TeacherDashboard = () => {
       setError(null);
 
       try {
+        // ✅ Teacher dashboard uses print history API - this is correct
         const historyRes = await getPrintHistory({ limit: 5, page: 1 });
 
         if (historyRes.success) {

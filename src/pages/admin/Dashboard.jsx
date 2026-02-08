@@ -15,7 +15,7 @@ import { getCertificates, getStockSummary } from "@api/certificateApi";
 import { getTeachers } from "@api/teacherApi";
 import { getModules } from "@api/moduleApi";
 import { formatNumber, formatDate } from "@utils/formatters";
-import { BRANCHES, DATE_FORMATS } from "@utils/constants";
+import { DATE_FORMATS } from "@utils/constants";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -41,7 +41,7 @@ const Dashboard = () => {
             getCertificates({ limit: 1 }),
             getTeachers({ limit: 1 }),
             getModules({ limit: 1 }),
-            getStockSummary(),
+            getStockSummary(), // ✅ This now calls /api/certificates/summary
           ]);
 
         // Check for critical failures
@@ -56,27 +56,27 @@ const Dashboard = () => {
           console.warn("Some dashboard data failed to load:", failures);
         }
 
-        // Process stock summary with proper validation
+        // ✅ FIXED: Process stock summary correctly
+        // Backend returns:
+        // {
+        //   total_stock: {
+        //     snd: { certificates: 1650, medals: 1650 },
+        //     mkw: { certificates: 250, medals: 250 },
+        //     kbp: { certificates: 150, medals: 150 }
+        //   },
+        //   grand_total: { certificates: 2050, medals: 2050 }
+        // }
         let processedStock = null;
         if (stockRes.status === "fulfilled" && stockRes.value?.data) {
           const stockData = stockRes.value.data;
 
-          // Backend should return: { SND: number, MKW: number, KBP: number }
-          // Validate that all values are numbers
-          processedStock = {};
-          Object.keys(BRANCHES).forEach((branch) => {
-            const value = stockData[branch];
-            if (typeof value === "number") {
-              processedStock[branch] = value;
-            } else {
-              console.error(
-                `Invalid stock value for ${branch}:`,
-                value,
-                "- expected number",
-              );
-              processedStock[branch] = 0;
-            }
-          });
+          if (stockData.total_stock) {
+            processedStock = {
+              SND: stockData.total_stock.snd?.certificates || 0,
+              MKW: stockData.total_stock.mkw?.certificates || 0,
+              KBP: stockData.total_stock.kbp?.certificates || 0,
+            };
+          }
         }
 
         setStats({
@@ -126,7 +126,7 @@ const Dashboard = () => {
     },
     {
       title: "Active Branches",
-      value: Object.keys(BRANCHES).length,
+      value: 3, // SND, MKW, KBP
       icon: TrendingUp,
       gradient: "from-orange-500 to-red-500",
     },

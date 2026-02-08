@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Eye, EyeOff, LogIn, User, Lock } from "lucide-react";
+import { Eye, EyeOff, LogIn, User, Lock, Sparkles } from "lucide-react";
 import { useAuth } from "@hooks/useAuth";
 import Button from "@components/common/Button";
 import Input from "@components/common/Input";
@@ -7,8 +7,8 @@ import ThemeToggle from "@components/common/ThemeToggle";
 import { ENV } from "@config/env";
 
 /**
- * Login Page
- * Handles user authentication for both Admin and Teacher roles
+ * Login Page - Redesigned with Glassmorphism
+ * Matches dashboard design language
  */
 const Login = () => {
   const { login } = useAuth();
@@ -113,51 +113,65 @@ const Login = () => {
   // =====================================================
 
   return (
-    <div className="min-h-screen bg-base flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Card Container */}
-        <div className="bg-surface rounded-lg shadow-lg p-8 border border-secondary/20">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-primary">
-                {ENV.APP_NAME}
-              </h1>
-              <p className="text-secondary text-sm mt-1">
-                Certificate Management System
-              </p>
+    <div className="min-h-screen bg-base flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Animated Background Gradients - matching dashboard */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 -left-4 w-72 h-72 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-20 right-10 w-96 h-96 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute bottom-10 left-1/3 w-80 h-80 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-full blur-3xl animate-pulse delay-2000"></div>
+      </div>
+
+      <div className="w-full max-w-md relative z-10">
+        {/* Main Card - Glassmorphism Style */}
+        <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-8 border border-gray-200/50 dark:border-white/10 shadow-2xl">
+          {/* Header with Theme Toggle */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg">
+                <Sparkles className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-primary">
+                  {ENV.APP_NAME}
+                </h1>
+                <p className="text-xs text-secondary">Certificate Management</p>
+              </div>
             </div>
             <ThemeToggle />
           </div>
 
           {/* Welcome Message */}
-          <div className="mb-6">
-            <h2 className="text-2xl font-semibold text-primary mb-2">
-              Welcome Back
+          <div className="mb-8">
+            <h2 className="text-3xl font-bold text-primary mb-2">
+              Welcome Back! 👋
             </h2>
-            <p className="text-secondary text-sm">Please sign in to continue</p>
+            <p className="text-secondary text-sm">
+              Sign in to access your dashboard
+            </p>
           </div>
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Username Input */}
-            <Input
-              label="Username"
-              type="text"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              placeholder="Enter your username"
-              error={errors.username}
-              disabled={isSubmitting}
-              required
-              prefixIcon={<User className="w-5 h-5" />}
-              autoComplete="username"
-              autoFocus
-            />
+            <div>
+              <Input
+                label="Username"
+                type="text"
+                name="username"
+                value={formData.username}
+                onChange={handleChange}
+                placeholder="Enter your username"
+                error={errors.username}
+                disabled={isSubmitting}
+                required
+                prefixIcon={<User className="w-5 h-5" />}
+                autoComplete="username"
+                autoFocus
+              />
+            </div>
 
             {/* Password Input */}
-            <div className="relative">
+            <div>
               <Input
                 label="Password"
                 type={showPassword ? "text" : "password"}
@@ -203,28 +217,66 @@ const Login = () => {
             </Button>
           </form>
 
-          {/* Footer Info */}
-          <div className="mt-8 pt-6 border-t border-secondary/10">
-            <div className="space-y-2 text-sm text-secondary">
-              <p className="font-medium">Test Accounts:</p>
-              <div className="space-y-1 text-xs">
-                <p>
-                  <span className="font-medium text-primary">Admin:</span> admin
-                  / admin123
-                </p>
-                <p>
-                  <span className="font-medium text-primary">Teacher:</span>{" "}
-                  teacher1 / password123
-                </p>
+          {/* Divider */}
+          <div className="my-6 flex items-center gap-3">
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 dark:via-white/20 to-transparent"></div>
+            <span className="text-xs text-secondary font-medium">
+              Test Accounts
+            </span>
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 dark:via-white/20 to-transparent"></div>
+          </div>
+
+          {/* Test Accounts Cards */}
+          <div className="space-y-2">
+            {/* Admin Account */}
+            <div className="backdrop-blur-sm bg-white/20 dark:bg-white/5 rounded-xl p-3 border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all group">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 shadow-md">
+                  <User className="w-4 h-4 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-primary">
+                    Admin Account
+                  </p>
+                  <p className="text-xs text-secondary">
+                    Username: <span className="font-mono">gulam</span> •
+                    Password: <span className="font-mono">admin123</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Teacher Account */}
+            <div className="backdrop-blur-sm bg-white/20 dark:bg-white/5 rounded-xl p-3 border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all group">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 shadow-md">
+                  <User className="w-4 h-4 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-primary">
+                    Teacher Account
+                  </p>
+                  <p className="text-xs text-secondary">
+                    Username: <span className="font-mono">teacher</span> •
+                    Password: <span className="font-mono">admin123</span>
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* App Version */}
-        <div className="text-center mt-4">
+        {/* Footer Info */}
+        <div className="mt-4 text-center">
           <p className="text-xs text-secondary">
-            Version {ENV.APP_VERSION} · {ENV.MODE}
+            Version {ENV.APP_VERSION} • {ENV.MODE}
+          </p>
+        </div>
+
+        {/* Security Notice */}
+        <div className="mt-3 backdrop-blur-sm bg-white/20 dark:bg-white/5 rounded-xl p-3 border border-gray-200/30 dark:border-white/5">
+          <p className="text-xs text-secondary text-center">
+            🔒 Your credentials are encrypted and secure
           </p>
         </div>
       </div>
