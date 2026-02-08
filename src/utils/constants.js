@@ -1,7 +1,9 @@
+import { ENV } from "../config/env";
+
 // API Configuration
 export const API_CONFIG = {
-  BASE_URL: "http://localhost:3000/api",
-  TIMEOUT: 30000,
+  BASE_URL: ENV.API_BASE_URL,
+  TIMEOUT: ENV.API_TIMEOUT,
 };
 
 // Storage Keys
