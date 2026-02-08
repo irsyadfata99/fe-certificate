@@ -8,6 +8,9 @@ import {
   AlertCircle,
   Package,
   TrendingUp,
+  ArrowRight,
+  X,
+  ArrowRightLeft,
 } from "lucide-react";
 import Button from "@components/common/Button";
 import Spinner from "@components/common/Spinner";
@@ -17,7 +20,14 @@ import { useForm } from "@hooks/useForm";
 import { useConfirm } from "@hooks/useConfirm";
 import { usePagination } from "@hooks/usePagination";
 import { useDebounce } from "@hooks/useDebounce";
-import axiosInstance from "@api/axiosConfig";
+import {
+  getCertificates,
+  getStockSummary,
+  createCertificate,
+  clearAllCertificates,
+  migrateCertificate,
+} from "@api/certificateApi";
+import { exportCertificates } from "@api/exportApi";
 import { formatNumber, formatDate } from "@utils/formatters";
 import { DATE_FORMATS } from "@utils/constants";
 
@@ -33,6 +43,8 @@ const Certificates = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBranch, setSelectedBranch] = useState("all");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showMigrateModal, setShowMigrateModal] = useState(false);
+  const [selectedCertForMigrate, setSelectedCertForMigrate] = useState(null);
 
   // Debounce search
   const debouncedSearch = useDebounce(searchTerm, 300);
@@ -47,10 +59,10 @@ const Certificates = () => {
   const confirm = useConfirm();
 
   // =====================================================
-  // FORM VALIDATION
+  // FORM VALIDATION - ADD CERTIFICATE
   // =====================================================
 
-  const validationSchema = {
+  const addValidationSchema = {
     certificate_id: {
       required: true,
       requiredMessage: "Certificate ID is required",
@@ -73,22 +85,22 @@ const Certificates = () => {
     certificates_count: {
       required: true,
       requiredMessage: "Certificates count is required",
-      min: 1,
-      minMessage: "Certificates count must be at least 1",
+      min: 0,
+      minMessage: "Certificates count cannot be negative",
       max: 10000,
       maxMessage: "Certificates count cannot exceed 10,000",
     },
     medals_count: {
       required: true,
       requiredMessage: "Medals count is required",
-      min: 1,
-      minMessage: "Medals count must be at least 1",
+      min: 0,
+      minMessage: "Medals count cannot be negative",
       max: 10000,
       maxMessage: "Medals count cannot exceed 10,000",
     },
   };
 
-  const form = useForm(
+  const addForm = useForm(
     {
       certificate_id: "",
       branch: "",
@@ -96,8 +108,81 @@ const Certificates = () => {
       medals_count: "",
     },
     {
-      validationSchema,
+      validationSchema: addValidationSchema,
       onSubmit: handleAddCertificate,
+    },
+  );
+
+  // =====================================================
+  // FORM VALIDATION - MIGRATE CERTIFICATE
+  // =====================================================
+
+  const migrateValidationSchema = {
+    destination_branch: {
+      required: true,
+      requiredMessage: "Destination branch is required",
+      validate: (value) => {
+        if (!["MKW", "KBP"].includes(value.toUpperCase())) {
+          return "Destination must be MKW or KBP";
+        }
+        return null;
+      },
+    },
+    certificate_amount: {
+      required: true,
+      min: 0,
+      minMessage: "Certificate amount cannot be negative",
+      validate: (value) => {
+        const certAmount = parseInt(value) || 0;
+        const medalAmount = parseInt(migrateForm.values.medal_amount) || 0;
+
+        if (certAmount === 0 && medalAmount === 0) {
+          return "At least one amount (certificates or medals) must be greater than 0";
+        }
+
+        if (
+          selectedCertForMigrate &&
+          certAmount > selectedCertForMigrate.jumlah_sertifikat_snd
+        ) {
+          return `Cannot exceed available SND stock (${selectedCertForMigrate.jumlah_sertifikat_snd})`;
+        }
+
+        return null;
+      },
+    },
+    medal_amount: {
+      required: true,
+      min: 0,
+      minMessage: "Medal amount cannot be negative",
+      validate: (value) => {
+        const medalAmount = parseInt(value) || 0;
+        const certAmount = parseInt(migrateForm.values.certificate_amount) || 0;
+
+        if (certAmount === 0 && medalAmount === 0) {
+          return "At least one amount (certificates or medals) must be greater than 0";
+        }
+
+        if (
+          selectedCertForMigrate &&
+          medalAmount > selectedCertForMigrate.jumlah_medali_snd
+        ) {
+          return `Cannot exceed available SND medals (${selectedCertForMigrate.jumlah_medali_snd})`;
+        }
+
+        return null;
+      },
+    },
+  };
+
+  const migrateForm = useForm(
+    {
+      destination_branch: "",
+      certificate_amount: "0",
+      medal_amount: "0",
+    },
+    {
+      validationSchema: migrateValidationSchema,
+      onSubmit: handleMigrateCertificate,
     },
   );
 
@@ -115,25 +200,23 @@ const Certificates = () => {
         offset: pagination.offset,
       };
 
-      // Add search filter
-      if (debouncedSearch) {
-        params.search = debouncedSearch;
-      }
+      const response = await getCertificates(params);
 
-      // Add branch filter - backend doesn't support this, we'll filter client-side
-      // if (selectedBranch !== "all") {
-      //   params.branch = selectedBranch;
-      // }
+      if (response.success) {
+        let allCertificates = response.data || [];
 
-      const response = await axiosInstance.get("/certificates", { params });
+        // Client-side filtering
+        if (debouncedSearch) {
+          allCertificates = allCertificates.filter((cert) =>
+            cert.certificate_id
+              ?.toLowerCase()
+              .includes(debouncedSearch.toLowerCase()),
+          );
+        }
 
-      if (response.data.success) {
-        let allCertificates = response.data.data || [];
-
-        // Client-side branch filtering
         if (selectedBranch !== "all") {
+          const branch = selectedBranch.toLowerCase();
           allCertificates = allCertificates.filter((cert) => {
-            const branch = selectedBranch.toLowerCase();
             const certCount = cert[`jumlah_sertifikat_${branch}`] || 0;
             const medalCount = cert[`jumlah_medali_${branch}`] || 0;
             return certCount > 0 || medalCount > 0;
@@ -142,7 +225,7 @@ const Certificates = () => {
 
         setCertificates(allCertificates);
         pagination.updateTotal(
-          response.data.meta?.pagination?.total || allCertificates.length,
+          response.pagination?.total || allCertificates.length,
         );
       }
     } catch (err) {
@@ -155,10 +238,10 @@ const Certificates = () => {
 
   const fetchStockSummary = async () => {
     try {
-      const response = await axiosInstance.get("/certificates/summary");
+      const response = await getStockSummary();
 
-      if (response.data.success && response.data.data) {
-        const stockData = response.data.data;
+      if (response.success && response.data) {
+        const stockData = response.data;
 
         if (stockData.total_stock) {
           setStockSummary({
@@ -193,14 +276,13 @@ const Certificates = () => {
   }, []);
 
   // =====================================================
-  // HANDLERS
+  // HANDLERS - CREATE
   // =====================================================
 
   async function handleAddCertificate(values) {
     try {
       const branch = values.branch.toUpperCase();
 
-      // Backend expects separate fields for each branch
       const payload = {
         certificate_id: values.certificate_id.trim(),
         jumlah_sertifikat_snd: 0,
@@ -211,33 +293,90 @@ const Certificates = () => {
         jumlah_medali_kbp: 0,
       };
 
-      // Set values based on selected branch
+      const certCount = parseInt(values.certificates_count) || 0;
+      const medalCount = parseInt(values.medals_count) || 0;
+
+      if (certCount === 0 && medalCount === 0) {
+        alert(
+          "At least one count (certificates or medals) must be greater than 0",
+        );
+        return;
+      }
+
       if (branch === "SND") {
-        payload.jumlah_sertifikat_snd = parseInt(values.certificates_count);
-        payload.jumlah_medali_snd = parseInt(values.medals_count);
+        payload.jumlah_sertifikat_snd = certCount;
+        payload.jumlah_medali_snd = medalCount;
       } else if (branch === "MKW") {
-        payload.jumlah_sertifikat_mkw = parseInt(values.certificates_count);
-        payload.jumlah_medali_mkw = parseInt(values.medals_count);
+        payload.jumlah_sertifikat_mkw = certCount;
+        payload.jumlah_medali_mkw = medalCount;
       } else if (branch === "KBP") {
-        payload.jumlah_sertifikat_kbp = parseInt(values.certificates_count);
-        payload.jumlah_medali_kbp = parseInt(values.medals_count);
+        payload.jumlah_sertifikat_kbp = certCount;
+        payload.jumlah_medali_kbp = medalCount;
       }
 
-      console.log("Sending payload:", payload);
+      await createCertificate(payload);
 
-      const response = await axiosInstance.post("/certificates", payload);
-
-      if (response.data.success) {
-        setShowAddModal(false);
-        form.resetForm();
-        fetchCertificates();
-        fetchStockSummary();
-      }
+      setShowAddModal(false);
+      addForm.resetForm();
+      fetchCertificates();
+      fetchStockSummary();
     } catch (err) {
       console.error("Failed to create certificate:", err);
-      alert(err.response?.data?.message || "Failed to create certificate");
     }
   }
+
+  // =====================================================
+  // HANDLERS - MIGRATE
+  // =====================================================
+
+  const handleOpenMigrateModal = (certificate) => {
+    // Check if has SND stock
+    if (
+      certificate.jumlah_sertifikat_snd === 0 &&
+      certificate.jumlah_medali_snd === 0
+    ) {
+      alert("No SND stock available to migrate");
+      return;
+    }
+
+    setSelectedCertForMigrate(certificate);
+    migrateForm.resetForm();
+    setShowMigrateModal(true);
+  };
+
+  async function handleMigrateCertificate(values) {
+    try {
+      const confirmed = await confirm.confirmWarning({
+        title: "Confirm Migration",
+        message: `Are you sure you want to migrate from SND to ${values.destination_branch.toUpperCase()}?\n\nCertificates: ${values.certificate_amount}\nMedals: ${values.medal_amount}`,
+        confirmText: "Yes, Migrate",
+        cancelText: "Cancel",
+      });
+
+      if (!confirmed) return;
+
+      const payload = {
+        certificate_id: selectedCertForMigrate.certificate_id,
+        destination_branch: values.destination_branch.toLowerCase(),
+        certificate_amount: parseInt(values.certificate_amount) || 0,
+        medal_amount: parseInt(values.medal_amount) || 0,
+      };
+
+      await migrateCertificate(payload);
+
+      setShowMigrateModal(false);
+      setSelectedCertForMigrate(null);
+      migrateForm.resetForm();
+      fetchCertificates();
+      fetchStockSummary();
+    } catch (err) {
+      console.error("Failed to migrate certificate:", err);
+    }
+  }
+
+  // =====================================================
+  // HANDLERS - CLEAR ALL
+  // =====================================================
 
   const handleClearAll = async () => {
     const confirmed = await confirm.confirmDanger({
@@ -248,45 +387,32 @@ const Certificates = () => {
       cancelText: "Cancel",
     });
 
-    if (confirmed) {
-      try {
-        console.log("Calling clear-all endpoint...");
-        const response = await axiosInstance.post("/certificates/clear-all");
+    if (!confirmed) return;
 
-        console.log("Clear all response:", response.data);
-
-        if (response.data.success) {
-          fetchCertificates();
-          fetchStockSummary();
-        }
-      } catch (err) {
-        console.error("Failed to clear certificates:", err);
-        alert(err.response?.data?.message || "Failed to clear certificates");
-      }
+    try {
+      await clearAllCertificates();
+      fetchCertificates();
+      fetchStockSummary();
+    } catch (err) {
+      console.error("Failed to clear certificates:", err);
     }
   };
+
+  // =====================================================
+  // HANDLERS - EXPORT
+  // =====================================================
 
   const handleExport = async () => {
     try {
-      const response = await axiosInstance.get("/export/certificates", {
-        responseType: "blob",
-      });
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute(
-        "download",
-        `certificates_${new Date().toISOString().split("T")[0]}.xlsx`,
-      );
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      await exportCertificates();
     } catch (err) {
       console.error("Failed to export certificates:", err);
-      alert("Failed to export certificates");
     }
   };
+
+  // =====================================================
+  // HANDLERS - SEARCH & FILTER
+  // =====================================================
 
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
@@ -323,6 +449,10 @@ const Certificates = () => {
       medals: cert[`jumlah_medali_${branchKey}`] || 0,
       branch: selectedBranch,
     };
+  };
+
+  const canMigrate = (cert) => {
+    return cert.jumlah_sertifikat_snd > 0 || cert.jumlah_medali_snd > 0;
   };
 
   // =====================================================
@@ -516,12 +646,15 @@ const Certificates = () => {
                 <th className="px-6 py-4 text-left text-xs font-semibold text-primary uppercase">
                   Created
                 </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-primary uppercase">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200/30 dark:divide-white/5">
               {certificates.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-12 text-center">
+                  <td colSpan="6" className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center gap-2">
                       <FileText className="w-12 h-12 text-secondary" />
                       <p className="text-secondary">No certificates found</p>
@@ -539,6 +672,8 @@ const Certificates = () => {
               ) : (
                 certificates.map((cert, index) => {
                   const branchData = getCertificatesByBranch(cert);
+                  const canMigrateThis = canMigrate(cert);
+
                   return (
                     <tr
                       key={cert.id || index}
@@ -560,6 +695,30 @@ const Certificates = () => {
                       </td>
                       <td className="px-6 py-4 text-sm text-secondary">
                         {formatDate(cert.created_at, DATE_FORMATS.DISPLAY)}
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        {selectedBranch === "all" && canMigrateThis && (
+                          <button
+                            onClick={() => handleOpenMigrateModal(cert)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 text-white text-xs font-medium hover:shadow-md transition-all"
+                            title="Migrate from SND"
+                          >
+                            <ArrowRightLeft className="w-3 h-3" />
+                            Migrate
+                          </button>
+                        )}
+                        {selectedBranch !== "all" &&
+                          selectedBranch === "SND" &&
+                          canMigrateThis && (
+                            <button
+                              onClick={() => handleOpenMigrateModal(cert)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 text-white text-xs font-medium hover:shadow-md transition-all"
+                              title="Migrate from SND"
+                            >
+                              <ArrowRightLeft className="w-3 h-3" />
+                              Migrate
+                            </button>
+                          )}
                       </td>
                     </tr>
                   );
@@ -628,16 +787,16 @@ const Certificates = () => {
         isOpen={showAddModal}
         onClose={() => {
           setShowAddModal(false);
-          form.resetForm();
+          addForm.resetForm();
         }}
         title="Add Certificate Batch"
         size="medium"
       >
-        <form onSubmit={form.handleSubmit} className="space-y-4">
+        <form onSubmit={addForm.handleSubmit} className="space-y-4">
           <Input
             label="Certificate ID"
             name="certificate_id"
-            {...form.getFieldProps("certificate_id")}
+            {...addForm.getFieldProps("certificate_id")}
             placeholder="e.g., CERT-001"
             required
           />
@@ -648,9 +807,9 @@ const Certificates = () => {
             </label>
             <select
               name="branch"
-              value={form.values.branch}
-              onChange={form.handleChange}
-              onBlur={form.handleBlur}
+              value={addForm.values.branch}
+              onChange={addForm.handleChange}
+              onBlur={addForm.handleBlur}
               className="w-full bg-surface text-primary border-0 rounded-lg px-4 py-2.5 transition-all duration-200 focus:outline-none focus:ring-0 disabled:opacity-50"
               required
             >
@@ -659,9 +818,9 @@ const Certificates = () => {
               <option value="MKW">Makwana (MKW)</option>
               <option value="KBP">Kopo Permai (KBP)</option>
             </select>
-            {form.getError("branch") && (
+            {addForm.getError("branch") && (
               <p className="mt-1.5 text-sm text-status-error">
-                {form.getError("branch")}
+                {addForm.getError("branch")}
               </p>
             )}
           </div>
@@ -670,7 +829,7 @@ const Certificates = () => {
             label="Certificates Count"
             name="certificates_count"
             type="number"
-            {...form.getFieldProps("certificates_count")}
+            {...addForm.getFieldProps("certificates_count")}
             placeholder="0"
             required
           />
@@ -679,7 +838,7 @@ const Certificates = () => {
             label="Medals Count"
             name="medals_count"
             type="number"
-            {...form.getFieldProps("medals_count")}
+            {...addForm.getFieldProps("medals_count")}
             placeholder="0"
             required
           />
@@ -691,7 +850,7 @@ const Certificates = () => {
               fullWidth
               onClick={() => {
                 setShowAddModal(false);
-                form.resetForm();
+                addForm.resetForm();
               }}
             >
               Cancel
@@ -700,13 +859,135 @@ const Certificates = () => {
               type="submit"
               variant="primary"
               fullWidth
-              loading={form.isSubmitting}
-              disabled={form.isSubmitting}
+              loading={addForm.isSubmitting}
+              disabled={addForm.isSubmitting}
             >
               Add Batch
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Migrate Certificate Modal */}
+      <Modal
+        isOpen={showMigrateModal}
+        onClose={() => {
+          setShowMigrateModal(false);
+          setSelectedCertForMigrate(null);
+          migrateForm.resetForm();
+        }}
+        title="Migrate Certificate Stock"
+        size="medium"
+      >
+        {selectedCertForMigrate && (
+          <div className="space-y-4">
+            {/* Certificate Info */}
+            <div className="backdrop-blur-sm bg-white/20 dark:bg-white/5 rounded-xl p-4 border border-gray-200/30 dark:border-white/5">
+              <p className="text-sm font-medium text-primary mb-2">
+                Certificate ID:{" "}
+                <span className="font-bold">
+                  {selectedCertForMigrate.certificate_id}
+                </span>
+              </p>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-secondary">SND Certificates:</p>
+                  <p className="text-primary font-semibold">
+                    {formatNumber(
+                      selectedCertForMigrate.jumlah_sertifikat_snd || 0,
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-secondary">SND Medals:</p>
+                  <p className="text-primary font-semibold">
+                    {formatNumber(
+                      selectedCertForMigrate.jumlah_medali_snd || 0,
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={migrateForm.handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-primary mb-1.5">
+                  Destination Branch{" "}
+                  <span className="text-status-error">*</span>
+                </label>
+                <select
+                  name="destination_branch"
+                  value={migrateForm.values.destination_branch}
+                  onChange={migrateForm.handleChange}
+                  onBlur={migrateForm.handleBlur}
+                  className="w-full bg-surface text-primary border-0 rounded-lg px-4 py-2.5 transition-all duration-200 focus:outline-none focus:ring-0"
+                  required
+                >
+                  <option value="">Select Destination</option>
+                  <option value="MKW">Makwana (MKW)</option>
+                  <option value="KBP">Kopo Permai (KBP)</option>
+                </select>
+                {migrateForm.getError("destination_branch") && (
+                  <p className="mt-1.5 text-sm text-status-error">
+                    {migrateForm.getError("destination_branch")}
+                  </p>
+                )}
+              </div>
+
+              <Input
+                label="Certificate Amount to Migrate"
+                name="certificate_amount"
+                type="number"
+                {...migrateForm.getFieldProps("certificate_amount")}
+                placeholder="0"
+                helperText={`Available: ${formatNumber(selectedCertForMigrate.jumlah_sertifikat_snd || 0)}`}
+                required
+              />
+
+              <Input
+                label="Medal Amount to Migrate"
+                name="medal_amount"
+                type="number"
+                {...migrateForm.getFieldProps("medal_amount")}
+                placeholder="0"
+                helperText={`Available: ${formatNumber(selectedCertForMigrate.jumlah_medali_snd || 0)}`}
+                required
+              />
+
+              <div className="backdrop-blur-sm bg-white/20 dark:bg-white/5 rounded-xl p-3 border border-gray-200/30 dark:border-white/5">
+                <p className="text-xs text-secondary">
+                  ⚠️ At least one amount (certificates or medals) must be
+                  greater than 0
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  fullWidth
+                  onClick={() => {
+                    setShowMigrateModal(false);
+                    setSelectedCertForMigrate(null);
+                    migrateForm.resetForm();
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  fullWidth
+                  loading={migrateForm.isSubmitting}
+                  disabled={migrateForm.isSubmitting}
+                  icon={<ArrowRight className="w-4 h-4" />}
+                >
+                  Migrate
+                </Button>
+              </div>
+            </form>
+          </div>
+        )}
       </Modal>
     </div>
   );
