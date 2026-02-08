@@ -131,10 +131,10 @@ const Login = () => {
                 <Sparkles className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-primary">
-                  {ENV.APP_NAME}
-                </h1>
-                <p className="text-xs text-secondary">Certificate Management</p>
+                <h1 className="text-2xl font-bold text-primary">CMS</h1>
+                <p className="text-xs text-secondary">
+                  Certificate Management System
+                </p>
               </div>
             </div>
             <ThemeToggle />
@@ -216,54 +216,6 @@ const Login = () => {
               {isSubmitting ? "Signing in..." : "Sign In"}
             </Button>
           </form>
-
-          {/* Divider */}
-          <div className="my-6 flex items-center gap-3">
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 dark:via-white/20 to-transparent"></div>
-            <span className="text-xs text-secondary font-medium">
-              Test Accounts
-            </span>
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 dark:via-white/20 to-transparent"></div>
-          </div>
-
-          {/* Test Accounts Cards */}
-          <div className="space-y-2">
-            {/* Admin Account */}
-            <div className="backdrop-blur-sm bg-white/20 dark:bg-white/5 rounded-xl p-3 border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all group">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 shadow-md">
-                  <User className="w-4 h-4 text-white" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs font-semibold text-primary">
-                    Admin Account
-                  </p>
-                  <p className="text-xs text-secondary">
-                    Username: <span className="font-mono">gulam</span> •
-                    Password: <span className="font-mono">admin123</span>
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Teacher Account */}
-            <div className="backdrop-blur-sm bg-white/20 dark:bg-white/5 rounded-xl p-3 border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all group">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 shadow-md">
-                  <User className="w-4 h-4 text-white" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs font-semibold text-primary">
-                    Teacher Account
-                  </p>
-                  <p className="text-xs text-secondary">
-                    Username: <span className="font-mono">teacher</span> •
-                    Password: <span className="font-mono">admin123</span>
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Footer Info */}
