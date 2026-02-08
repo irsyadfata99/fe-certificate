@@ -7,6 +7,9 @@ import ErrorBoundary from "./components/error/ErrorBoundary";
 import { validateEnv } from "./config/env";
 import "./index.css";
 
+// Import dev tools (akan auto-run checks dalam development)
+import "./utils/devTools";
+
 // Validate environment variables before app starts
 try {
   validateEnv();

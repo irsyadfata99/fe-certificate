@@ -151,6 +151,30 @@ body {
   background-color: var(--color-error);
 }
 
+.bg-status-success {
+  background-color: var(--color-success);
+}
+
+.bg-status-warning {
+  background-color: var(--color-warning);
+}
+
+.bg-status-error {
+  background-color: var(--color-error);
+}
+
+.border-status-success {
+  border-color: var(--color-success);
+}
+
+.border-status-warning {
+  border-color: var(--color-warning);
+}
+
+.border-status-error {
+  border-color: var(--color-error);
+}
+
 /* ============================================= */
 /* COMPONENT STYLES */
 /* ============================================= */
@@ -262,10 +286,29 @@ body {
   }
 }
 
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 .fade-in {
   animation: fadeIn 0.3s ease;
 }
 
 .slide-in {
   animation: slideIn 0.3s ease;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.animate-slideIn {
+  animation: slideUp 0.3s ease-out;
 }
