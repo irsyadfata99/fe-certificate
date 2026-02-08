@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Eye, EyeOff, LogIn, User, Lock, Sparkles } from "lucide-react";
 import { useAuth } from "@hooks/useAuth";
 import Button from "@components/common/Button";
-import Input from "@components/common/Input";
 import ThemeToggle from "@components/common/ThemeToggle";
 import { ENV } from "@config/env";
 
@@ -154,52 +153,106 @@ const Login = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Username Input */}
             <div>
-              <Input
-                label="Username"
-                type="text"
-                name="username"
-                value={formData.username}
-                onChange={handleChange}
-                placeholder="Enter your username"
-                error={errors.username}
-                disabled={isSubmitting}
-                required
-                prefixIcon={<User className="w-5 h-5" />}
-                autoComplete="username"
-                autoFocus
-              />
+              <label
+                htmlFor="username"
+                className="block text-sm font-medium text-primary mb-1.5"
+              >
+                Username <span className="text-status-error">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none">
+                  <User className="w-5 h-5" />
+                </div>
+                <input
+                  type="text"
+                  name="username"
+                  id="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  placeholder="Enter your username"
+                  disabled={isSubmitting}
+                  required
+                  autoComplete="username"
+                  autoFocus
+                  className={`
+                    w-full
+                    bg-surface
+                    text-primary
+                    border
+                    ${errors.username ? "border-status-error" : "border-secondary"}
+                    rounded-lg
+                    pl-10 pr-4 py-2.5
+                    transition-all duration-200
+                    focus:outline-none focus:ring-2 focus:ring-offset-0
+                    ${errors.username ? "focus:ring-status-error" : "focus:ring-primary"}
+                    placeholder:text-secondary
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                  `}
+                />
+              </div>
+              {errors.username && (
+                <p className="mt-1.5 text-sm text-status-error">
+                  {errors.username}
+                </p>
+              )}
             </div>
 
             {/* Password Input */}
             <div>
-              <Input
-                label="Password"
-                type={showPassword ? "text" : "password"}
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Enter your password"
-                error={errors.password}
-                disabled={isSubmitting}
-                required
-                prefixIcon={<Lock className="w-5 h-5" />}
-                suffixIcon={
-                  <button
-                    type="button"
-                    onClick={togglePasswordVisibility}
-                    className="p-1 hover:bg-primary/10 rounded transition-colors"
-                    tabIndex={-1}
-                    disabled={isSubmitting}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
-                  </button>
-                }
-                autoComplete="current-password"
-              />
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-primary mb-1.5"
+              >
+                Password <span className="text-status-error">*</span>
+              </label>
+              <div className="relative">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  id="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Enter your password"
+                  disabled={isSubmitting}
+                  required
+                  autoComplete="current-password"
+                  className={`
+                    w-full
+                    bg-surface
+                    text-primary
+                    border
+                    ${errors.password ? "border-status-error" : "border-secondary"}
+                    rounded-lg
+                    pl-10 pr-12 py-2.5
+                    transition-all duration-200
+                    focus:outline-none focus:ring-2 focus:ring-offset-0
+                    ${errors.password ? "focus:ring-status-error" : "focus:ring-primary"}
+                    placeholder:text-secondary
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                  `}
+                />
+                <button
+                  type="button"
+                  onClick={togglePasswordVisibility}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-primary/10 rounded transition-colors text-secondary"
+                  tabIndex={-1}
+                  disabled={isSubmitting}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+              {errors.password && (
+                <p className="mt-1.5 text-sm text-status-error">
+                  {errors.password}
+                </p>
+              )}
             </div>
 
             {/* Submit Button */}

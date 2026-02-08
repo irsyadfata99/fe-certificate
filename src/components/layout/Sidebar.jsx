@@ -14,6 +14,7 @@ import { useAuth } from "@hooks/useAuth";
 /**
  * Sidebar Component
  * Side navigation menu dengan role-based menu items
+ * Glassmorphism style
  */
 const Sidebar = ({ isOpen, onClose }) => {
   const { user, isAdmin } = useAuth();
@@ -83,8 +84,8 @@ const Sidebar = ({ isOpen, onClose }) => {
         transition-all duration-200
         ${
           isActive
-            ? "bg-primary text-white shadow-md"
-            : "text-primary hover:bg-primary/10"
+            ? "bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-lg"
+            : "backdrop-blur-sm bg-white/20 dark:bg-white/5 border border-gray-200/30 dark:border-white/5 text-primary hover:bg-white/30 dark:hover:bg-white/10"
         }
       `}
     >
@@ -102,26 +103,27 @@ const Sidebar = ({ isOpen, onClose }) => {
       {/* Mobile Backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden"
           onClick={onClose}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - Glassmorphism */}
       <aside
         className={`
           fixed lg:sticky top-0 left-0 z-40
           h-screen w-64
-          bg-surface
+          backdrop-blur-md bg-white/40 dark:bg-white/5
+          border-r border-gray-200/50 dark:border-white/10
           transform transition-transform duration-300 ease-in-out
           flex flex-col
           ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-4">
+        <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200/30 dark:border-white/5">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg">
               <span className="text-white font-bold text-lg">C</span>
             </div>
             <span className="font-semibold text-primary">Menu</span>
@@ -130,7 +132,7 @@ const Sidebar = ({ isOpen, onClose }) => {
           {/* Close Button (Mobile Only) */}
           <button
             onClick={onClose}
-            className="lg:hidden p-1 rounded-lg text-secondary hover:bg-primary/10 hover:text-primary transition-colors"
+            className="lg:hidden p-1 rounded-lg backdrop-blur-sm bg-white/20 dark:bg-white/5 border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 text-secondary hover:text-primary transition-all"
             aria-label="Close menu"
           >
             <X className="w-5 h-5" />
@@ -139,7 +141,7 @@ const Sidebar = ({ isOpen, onClose }) => {
 
         {/* Navigation Menu */}
         <nav className="flex-1 overflow-y-auto px-3 py-4">
-          <div className="space-y-1">
+          <div className="space-y-2">
             {menuItems.map((item) => (
               <MenuItem key={item.path} item={item} />
             ))}
@@ -148,10 +150,10 @@ const Sidebar = ({ isOpen, onClose }) => {
 
         {/* Footer - User Info */}
         {user && (
-          <div className="px-4 py-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="text-primary font-semibold">
+          <div className="px-4 py-3 border-t border-gray-200/30 dark:border-white/5">
+            <div className="flex items-center gap-3 p-2 rounded-lg backdrop-blur-sm bg-white/20 dark:bg-white/5 border border-gray-200/30 dark:border-white/5">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-md">
+                <span className="text-white font-semibold">
                   {user.teacherName?.charAt(0).toUpperCase() ||
                     user.username?.charAt(0).toUpperCase()}
                 </span>

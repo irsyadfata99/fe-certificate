@@ -41,10 +41,9 @@ const Dashboard = () => {
             getCertificates({ limit: 1 }),
             getTeachers({ limit: 1 }),
             getModules({ limit: 1 }),
-            getStockSummary(), // ✅ This now calls /api/certificates/summary
+            getStockSummary(),
           ]);
 
-        // Check for critical failures
         const failures = [
           certificatesRes,
           teachersRes,
@@ -56,16 +55,6 @@ const Dashboard = () => {
           console.warn("Some dashboard data failed to load:", failures);
         }
 
-        // ✅ FIXED: Process stock summary correctly
-        // Backend returns:
-        // {
-        //   total_stock: {
-        //     snd: { certificates: 1650, medals: 1650 },
-        //     mkw: { certificates: 250, medals: 250 },
-        //     kbp: { certificates: 150, medals: 150 }
-        //   },
-        //   grand_total: { certificates: 2050, medals: 2050 }
-        // }
         let processedStock = null;
         if (stockRes.status === "fulfilled" && stockRes.value?.data) {
           const stockData = stockRes.value.data;
@@ -126,7 +115,7 @@ const Dashboard = () => {
     },
     {
       title: "Active Branches",
-      value: 3, // SND, MKW, KBP
+      value: 3,
       icon: TrendingUp,
       gradient: "from-orange-500 to-red-500",
     },
@@ -177,38 +166,38 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-4 border border-gray-200/50 dark:border-white/10 shadow-lg">
+      {/* Header - Glassmorphism */}
+      <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg">
         <h1 className="text-2xl font-bold text-primary">
           Welcome back, {getUserDisplayName()}! 👋
         </h1>
-        <p className="text-secondary text-sm mt-1">
+        <p className="text-secondary mt-1">
           Here's what's happening with your system today.
         </p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* Stats Grid - Glassmorphism */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {statsCards.map((stat, index) => {
           const Icon = stat.icon;
           return (
             <div
               key={index}
-              className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-4 border border-gray-200/50 dark:border-white/10 shadow-lg hover:shadow-xl hover:bg-white/50 dark:hover:bg-white/10 transition-all duration-300 cursor-pointer group"
+              className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg hover:shadow-xl hover:bg-white/50 dark:hover:bg-white/10 transition-all duration-300 cursor-pointer group"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <p className="text-xs font-medium text-secondary">
+                  <p className="text-sm font-medium text-secondary mb-1">
                     {stat.title}
                   </p>
-                  <p className="text-2xl font-bold text-primary mt-1 group-hover:scale-105 transition-transform">
+                  <p className="text-3xl font-bold text-primary group-hover:scale-105 transition-transform">
                     {stat.value}
                   </p>
                 </div>
                 <div
-                  className={`p-2 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg`}
+                  className={`p-3 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg`}
                 >
-                  <Icon className="w-5 h-5 text-white" />
+                  <Icon className="w-6 h-6 text-white" />
                 </div>
               </div>
             </div>
@@ -216,94 +205,98 @@ const Dashboard = () => {
         })}
       </div>
 
-      {/* Stock Summary */}
+      {/* Stock Summary - Glassmorphism */}
       {stats.stockSummary && Object.keys(stats.stockSummary).length > 0 && (
-        <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-4 border border-gray-200/50 dark:border-white/10 shadow-lg">
-          <h2 className="text-sm font-semibold text-primary mb-3">
+        <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg">
+          <h2 className="text-lg font-semibold text-primary mb-4">
             Stock Summary by Branch
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {Object.entries(stats.stockSummary).map(([branch, stock]) => (
               <div
                 key={branch}
-                className="backdrop-blur-sm bg-white/20 dark:bg-white/5 p-3 rounded-xl border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all"
+                className="backdrop-blur-sm bg-white/20 dark:bg-white/5 p-4 rounded-xl border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all"
               >
-                <div className="flex items-center justify-between mb-1">
-                  <h3 className="text-sm font-semibold text-primary">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-base font-semibold text-primary">
                     {branch}
                   </h3>
-                  <FileText className="w-4 h-4 text-secondary" />
+                  <FileText className="w-5 h-5 text-secondary" />
                 </div>
-                <p className="text-xl font-bold text-primary">
+                <p className="text-2xl font-bold text-primary">
                   {formatNumber(stock)}
                 </p>
-                <p className="text-xs text-secondary">Available certificates</p>
+                <p className="text-sm text-secondary mt-1">
+                  Available certificates
+                </p>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Recent Activity */}
-      <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-4 border border-gray-200/50 dark:border-white/10 shadow-lg">
-        <h2 className="text-sm font-semibold text-primary mb-3">
+      {/* Recent Activity - Glassmorphism */}
+      <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg">
+        <h2 className="text-lg font-semibold text-primary mb-4">
           Recent Activity
         </h2>
-        <div className="space-y-2">
-          <div className="backdrop-blur-sm bg-white/20 dark:bg-white/5 rounded-xl p-2 border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all flex items-start gap-2">
-            <div className="p-1.5 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 shadow-md">
-              <FileText className="w-4 h-4 text-white" />
+        <div className="space-y-3">
+          <div className="backdrop-blur-sm bg-white/20 dark:bg-white/5 rounded-xl p-4 border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 shadow-md">
+              <FileText className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-primary">
+              <p className="text-sm font-medium text-primary">
                 New certificate batch added
               </p>
-              <p className="text-xs text-secondary">
+              <p className="text-sm text-secondary mt-0.5">
                 50 certificates added to SND
               </p>
             </div>
-            <p className="text-xs text-secondary whitespace-nowrap">
+            <p className="text-sm text-secondary whitespace-nowrap">
               {formatDate(new Date(), DATE_FORMATS.DISPLAY)}
             </p>
           </div>
 
-          <div className="backdrop-blur-sm bg-white/20 dark:bg-white/5 rounded-xl p-2 border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all flex items-start gap-2">
-            <div className="p-1.5 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 shadow-md">
-              <Users className="w-4 h-4 text-white" />
+          <div className="backdrop-blur-sm bg-white/20 dark:bg-white/5 rounded-xl p-4 border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 shadow-md">
+              <Users className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-primary">
+              <p className="text-sm font-medium text-primary">
                 New teacher registered
               </p>
-              <p className="text-xs text-secondary">Teacher added to MKW</p>
+              <p className="text-sm text-secondary mt-0.5">
+                Teacher added to MKW
+              </p>
             </div>
-            <p className="text-xs text-secondary whitespace-nowrap">
+            <p className="text-sm text-secondary whitespace-nowrap">
               {formatDate(new Date(), DATE_FORMATS.DISPLAY)}
             </p>
           </div>
 
-          <div className="backdrop-blur-sm bg-white/20 dark:bg-white/5 rounded-xl p-2 border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all flex items-start gap-2">
-            <div className="p-1.5 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 shadow-md">
-              <BookOpen className="w-4 h-4 text-white" />
+          <div className="backdrop-blur-sm bg-white/20 dark:bg-white/5 rounded-xl p-4 border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 shadow-md">
+              <BookOpen className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-primary">Module updated</p>
-              <p className="text-xs text-secondary">
+              <p className="text-sm font-medium text-primary">Module updated</p>
+              <p className="text-sm text-secondary mt-0.5">
                 Age range modified for JK-001
               </p>
             </div>
-            <p className="text-xs text-secondary whitespace-nowrap">
+            <p className="text-sm text-secondary whitespace-nowrap">
               {formatDate(new Date(), DATE_FORMATS.DISPLAY)}
             </p>
           </div>
         </div>
 
-        <div className="mt-3 pt-3 border-t border-gray-200/30 dark:border-white/5">
+        <div className="mt-4 pt-4 border-t border-gray-200/30 dark:border-white/5">
           <Button
             variant="ghost"
             size="small"
             onClick={() => navigate("/admin/logs")}
-            icon={<ArrowRight className="w-3 h-3" />}
+            icon={<ArrowRight className="w-4 h-4" />}
             iconPosition="right"
           >
             View All Activity

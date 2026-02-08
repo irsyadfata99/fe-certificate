@@ -41,7 +41,6 @@ const TeacherDashboard = () => {
       setError(null);
 
       try {
-        // ✅ Teacher dashboard uses print history API - this is correct
         const historyRes = await getPrintHistory({ limit: 5, page: 1 });
 
         if (historyRes.success) {
@@ -146,53 +145,53 @@ const TeacherDashboard = () => {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-4 border border-gray-200/50 dark:border-white/10 shadow-lg">
+      {/* Header - Glassmorphism */}
+      <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg">
         <h1 className="text-2xl font-bold text-primary">
           Welcome, {getUserDisplayName()}! 👋
         </h1>
-        <p className="text-secondary text-sm mt-1">
+        <p className="text-secondary mt-1">
           Ready to print some certificates today?
         </p>
       </div>
 
-      {/* Teacher Info Card */}
-      <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-4 border border-gray-200/50 dark:border-white/10 shadow-lg">
-        <h2 className="text-sm font-semibold text-primary mb-3">
+      {/* Teacher Info Card - Glassmorphism */}
+      <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg">
+        <h2 className="text-lg font-semibold text-primary mb-4">
           Your Information
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="flex items-start gap-2">
-            <div className="p-1.5 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 shadow-md">
-              <User className="w-4 h-4 text-white" />
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 shadow-md">
+              <User className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="text-xs text-secondary">Teacher Name</p>
-              <p className="text-sm font-semibold text-primary mt-0.5">
+              <p className="text-sm text-secondary">Teacher Name</p>
+              <p className="text-base font-semibold text-primary mt-1">
                 {getUserDisplayName()}
               </p>
             </div>
           </div>
 
-          <div className="flex items-start gap-2">
-            <div className="p-1.5 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 shadow-md">
-              <MapPin className="w-4 h-4 text-white" />
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 shadow-md">
+              <MapPin className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="text-xs text-secondary">Branch</p>
-              <p className="text-sm font-semibold text-primary mt-0.5">
+              <p className="text-sm text-secondary">Branch</p>
+              <p className="text-base font-semibold text-primary mt-1">
                 {formatBranch(getUserBranch() || "N/A")}
               </p>
             </div>
           </div>
 
-          <div className="flex items-start gap-2">
-            <div className="p-1.5 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 shadow-md">
-              <BookOpen className="w-4 h-4 text-white" />
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 shadow-md">
+              <BookOpen className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="text-xs text-secondary">Division</p>
-              <p className="text-sm font-semibold text-primary mt-0.5">
+              <p className="text-sm text-secondary">Division</p>
+              <p className="text-base font-semibold text-primary mt-1">
                 {formatDivision(getUserDivision() || "N/A")}
               </p>
             </div>
@@ -200,31 +199,31 @@ const TeacherDashboard = () => {
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {/* Stats Grid - Glassmorphism */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {statsCards.map((stat, index) => {
           const Icon = stat.icon;
           return (
             <div
               key={index}
-              className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-4 border border-gray-200/50 dark:border-white/10 shadow-lg hover:shadow-xl hover:bg-white/50 dark:hover:bg-white/10 transition-all duration-300 cursor-pointer group"
+              className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg hover:shadow-xl hover:bg-white/50 dark:hover:bg-white/10 transition-all duration-300 cursor-pointer group"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <p className="text-xs font-medium text-secondary">
+                  <p className="text-sm font-medium text-secondary mb-1">
                     {stat.title}
                   </p>
-                  <p className="text-2xl font-bold text-primary mt-1 group-hover:scale-105 transition-transform">
+                  <p className="text-3xl font-bold text-primary group-hover:scale-105 transition-transform">
                     {stat.value}
                   </p>
-                  <p className="text-xs text-secondary mt-1">
+                  <p className="text-sm text-secondary mt-1">
                     {stat.description}
                   </p>
                 </div>
                 <div
-                  className={`p-2 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg`}
+                  className={`p-3 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg`}
                 >
-                  <Icon className="w-5 h-5 text-white" />
+                  <Icon className="w-6 h-6 text-white" />
                 </div>
               </div>
             </div>
@@ -232,51 +231,51 @@ const TeacherDashboard = () => {
         })}
       </div>
 
-      {/* Recent Print History */}
-      <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-4 border border-gray-200/50 dark:border-white/10 shadow-lg">
-        <h2 className="text-sm font-semibold text-primary mb-3">
+      {/* Recent Print History - Glassmorphism */}
+      <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg">
+        <h2 className="text-lg font-semibold text-primary mb-4">
           Recent Print History
         </h2>
         {stats.recentHistory.length === 0 ? (
           <div className="text-center py-8">
-            <div className="inline-flex items-center justify-center w-12 h-12 backdrop-blur-sm bg-white/20 dark:bg-white/5 border border-gray-200/30 dark:border-white/5 rounded-full mb-3">
-              <History className="w-6 h-6 text-secondary" />
+            <div className="inline-flex items-center justify-center w-16 h-16 backdrop-blur-sm bg-white/20 dark:bg-white/5 border border-gray-200/30 dark:border-white/5 rounded-full mb-4">
+              <History className="w-8 h-8 text-secondary" />
             </div>
-            <p className="text-secondary text-sm mb-1">No print history yet</p>
-            <p className="text-xs text-secondary mb-3">
+            <p className="text-secondary mb-1">No print history yet</p>
+            <p className="text-sm text-secondary mb-4">
               Start printing certificates to see them here
             </p>
             <Button
               variant="primary"
               size="small"
               onClick={() => navigate("/teacher/print")}
-              icon={<Printer className="w-3 h-3" />}
+              icon={<Printer className="w-4 h-4" />}
             >
               Print Your First Certificate
             </Button>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {stats.recentHistory.map((item, index) => (
               <div
                 key={index}
-                className="backdrop-blur-sm bg-white/20 dark:bg-white/5 rounded-xl p-2 border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all flex items-center justify-between"
+                className="backdrop-blur-sm bg-white/20 dark:bg-white/5 rounded-xl p-4 border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all flex items-center justify-between"
               >
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 shadow-md">
-                    <Award className="w-4 h-4 text-white" />
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 shadow-md">
+                    <Award className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <p className="text-xs font-medium text-primary">
+                    <p className="text-sm font-medium text-primary">
                       {item.student_name || "N/A"}
                     </p>
-                    <p className="text-xs text-secondary">
+                    <p className="text-sm text-secondary">
                       {item.module_name || "N/A"}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-secondary">
+                  <p className="text-sm text-secondary">
                     {formatDate(item.ptc_date, DATE_FORMATS.DISPLAY)}
                   </p>
                   <p className="text-xs text-secondary">
@@ -286,13 +285,13 @@ const TeacherDashboard = () => {
               </div>
             ))}
 
-            <div className="pt-2 border-t border-gray-200/30 dark:border-white/5">
+            <div className="pt-3 border-t border-gray-200/30 dark:border-white/5">
               <Button
                 variant="ghost"
                 size="small"
                 fullWidth
                 onClick={() => navigate("/teacher/history")}
-                icon={<History className="w-3 h-3" />}
+                icon={<History className="w-4 h-4" />}
                 iconPosition="right"
               >
                 View All History
