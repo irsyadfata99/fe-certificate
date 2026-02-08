@@ -1,50 +1,30 @@
 import { useState } from "react";
-import { Menu, X, User, LogOut } from "lucide-react";
+import { Menu, User, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import ThemeToggle from "../../components/common/ThemeToggle";
+import ThemeToggle from "../common/ThemeToggle";
 import { useAuth } from "@hooks/useAuth";
 import { ENV } from "@config/env";
 
 /**
  * Navbar Component
  * Top navigation dengan user menu dan theme toggle
- *
- * Features:
- * - App title
- * - User info & avatar
- * - Logout button
- * - Theme toggle
- * - Mobile menu toggle
- * - Responsive
  */
 const Navbar = ({ onMenuClick }) => {
   const navigate = useNavigate();
   const { user, logout, getUserDisplayName, getUserRoleLabel } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  // =====================================================
-  // HANDLE LOGOUT
-  // =====================================================
-
   const handleLogout = () => {
     logout();
   };
-
-  // =====================================================
-  // HANDLE PROFILE
-  // =====================================================
 
   const handleProfile = () => {
     navigate("/profile");
     setShowUserMenu(false);
   };
 
-  // =====================================================
-  // RENDER
-  // =====================================================
-
   return (
-    <nav className="bg-surface border-b border-secondary/20 sticky top-0 z-40">
+    <nav className="bg-surface sticky top-0 z-40">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Left Section: Menu Button + Title */}
@@ -101,7 +81,7 @@ const Navbar = ({ onMenuClick }) => {
                     />
 
                     {/* Menu */}
-                    <div className="absolute right-0 mt-2 w-48 bg-surface border border-secondary/20 rounded-lg shadow-lg z-20 overflow-hidden">
+                    <div className="absolute right-0 mt-2 w-48 bg-surface rounded-lg shadow-lg z-20 overflow-hidden">
                       {/* Profile Button */}
                       <button
                         onClick={handleProfile}
@@ -110,9 +90,6 @@ const Navbar = ({ onMenuClick }) => {
                         <User className="w-4 h-4" />
                         <span className="text-sm">Profile</span>
                       </button>
-
-                      {/* Divider */}
-                      <div className="border-t border-secondary/10" />
 
                       {/* Logout Button */}
                       <button

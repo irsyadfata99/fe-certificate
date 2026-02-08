@@ -4,13 +4,10 @@ import {
   FileText,
   Users,
   BookOpen,
-  Activity,
   TrendingUp,
-  Calendar,
   ArrowRight,
 } from "lucide-react";
 import { useAuth } from "@hooks/useAuth";
-import Card from "@components/common/Card";
 import Button from "@components/common/Button";
 import Spinner from "@components/common/Spinner";
 import { getCertificates, getStockSummary } from "@api/certificateApi";
@@ -18,17 +15,9 @@ import { getTeachers } from "@api/teacherApi";
 import { getModules } from "@api/moduleApi";
 import { formatNumber, formatDate } from "@utils/formatters";
 
-/**
- * Admin Dashboard
- * Overview of system statistics and quick actions
- */
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { user, getUserDisplayName } = useAuth();
-
-  // =====================================================
-  // STATE
-  // =====================================================
+  const { getUserDisplayName } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -38,25 +27,36 @@ const Dashboard = () => {
     stockSummary: null,
   });
 
-  // =====================================================
-  // FETCH DATA
-  // =====================================================
-
   useEffect(() => {
     const fetchDashboardData = async () => {
       setLoading(true);
 
       try {
-        // Fetch all required data in parallel
         const [certificatesRes, teachersRes, modulesRes, stockRes] =
           await Promise.allSettled([
-            getCertificates({ limit: 1 }), // Just get count
-            getTeachers({ limit: 1 }), // Just get count
-            getModules({ limit: 1 }), // Just get count
+            getCertificates({ limit: 1 }),
+            getTeachers({ limit: 1 }),
+            getModules({ limit: 1 }),
             getStockSummary(),
           ]);
 
-        // Update stats
+        // Process stock summary - handle nested object structure
+        let processedStock = null;
+        if (stockRes.status === "fulfilled" && stockRes.value?.data) {
+          const rawStock = stockRes.value.data;
+
+          // Check if it's the nested structure (total_stock, grand_total)
+          if (
+            rawStock.total_stock &&
+            typeof rawStock.total_stock === "object"
+          ) {
+            processedStock = rawStock.total_stock;
+          } else {
+            // Direct branch structure (SND, MKW, KBP)
+            processedStock = rawStock;
+          }
+        }
+
         setStats({
           totalCertificates:
             certificatesRes.status === "fulfilled"
@@ -70,10 +70,7 @@ const Dashboard = () => {
             modulesRes.status === "fulfilled"
               ? modulesRes.value?.pagination?.total || 0
               : 0,
-          stockSummary:
-            stockRes.status === "fulfilled"
-              ? stockRes.value?.data || null
-              : null,
+          stockSummary: processedStock,
         });
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
@@ -85,79 +82,32 @@ const Dashboard = () => {
     fetchDashboardData();
   }, []);
 
-  // =====================================================
-  // QUICK ACTIONS
-  // =====================================================
-
-  const quickActions = [
-    {
-      label: "Manage Certificates",
-      icon: FileText,
-      path: "/admin/certificates",
-      variant: "primary",
-    },
-    {
-      label: "Manage Teachers",
-      icon: Users,
-      path: "/admin/teachers",
-      variant: "secondary",
-    },
-    {
-      label: "Manage Modules",
-      icon: BookOpen,
-      path: "/admin/modules",
-      variant: "outline",
-    },
-    {
-      label: "View Logs",
-      icon: Activity,
-      path: "/admin/logs",
-      variant: "ghost",
-    },
-  ];
-
-  // =====================================================
-  // STATS CARDS
-  // =====================================================
-
   const statsCards = [
     {
       title: "Total Certificates",
       value: formatNumber(stats.totalCertificates),
       icon: FileText,
-      color: "text-blue-600 dark:text-blue-400",
-      bgColor: "bg-blue-50 dark:bg-blue-900/20",
-      trend: "+12%",
+      gradient: "from-blue-500 to-cyan-500",
     },
     {
       title: "Total Teachers",
       value: formatNumber(stats.totalTeachers),
       icon: Users,
-      color: "text-green-600 dark:text-green-400",
-      bgColor: "bg-green-50 dark:bg-green-900/20",
-      trend: "+5%",
+      gradient: "from-green-500 to-emerald-500",
     },
     {
       title: "Total Modules",
       value: formatNumber(stats.totalModules),
       icon: BookOpen,
-      color: "text-purple-600 dark:text-purple-400",
-      bgColor: "bg-purple-50 dark:bg-purple-900/20",
-      trend: "+8%",
+      gradient: "from-purple-500 to-pink-500",
     },
     {
       title: "Active Branches",
       value: "3",
       icon: TrendingUp,
-      color: "text-orange-600 dark:text-orange-400",
-      bgColor: "bg-orange-50 dark:bg-orange-900/20",
-      trend: "SND, MKW, KBP",
+      gradient: "from-orange-500 to-red-500",
     },
   ];
-
-  // =====================================================
-  // LOADING STATE
-  // =====================================================
 
   if (loading) {
     return (
@@ -167,138 +117,148 @@ const Dashboard = () => {
     );
   }
 
-  // =====================================================
-  // RENDER
-  // =====================================================
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-primary">
+      <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-4 border border-gray-200/50 dark:border-white/10 shadow-lg">
+        <h1 className="text-2xl font-bold text-primary">
           Welcome back, {getUserDisplayName()}! 👋
         </h1>
-        <p className="text-secondary mt-1">
+        <p className="text-secondary text-sm mt-1">
           Here's what's happening with your system today.
         </p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         {statsCards.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <Card key={index} padding="default" hoverable>
+            <div
+              key={index}
+              className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-4 border border-gray-200/50 dark:border-white/10 shadow-lg hover:shadow-xl hover:bg-white/50 dark:hover:bg-white/10 transition-all duration-300 cursor-pointer group"
+            >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-secondary">
+                  <p className="text-xs font-medium text-secondary">
                     {stat.title}
                   </p>
-                  <p className="text-3xl font-bold text-primary mt-2">
+                  <p className="text-2xl font-bold text-primary mt-1 group-hover:scale-105 transition-transform">
                     {stat.value}
                   </p>
-                  <p className="text-xs text-secondary mt-2">{stat.trend}</p>
                 </div>
-                <div className={`p-3 rounded-lg ${stat.bgColor} ${stat.color}`}>
-                  <Icon className="w-6 h-6" />
+                <div
+                  className={`p-2 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg`}
+                >
+                  <Icon className="w-5 h-5 text-white" />
                 </div>
               </div>
-            </Card>
+            </div>
           );
         })}
       </div>
 
       {/* Stock Summary */}
       {stats.stockSummary && (
-        <Card title="Stock Summary by Branch" padding="default">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {Object.entries(stats.stockSummary).map(([branch, stock]) => (
-              <div
-                key={branch}
-                className="p-4 bg-surface border border-secondary/10 rounded-lg"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold text-primary">{branch}</h3>
-                  <FileText className="w-5 h-5 text-secondary" />
+        <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-4 border border-gray-200/50 dark:border-white/10 shadow-lg">
+          <h2 className="text-sm font-semibold text-primary mb-3">
+            Stock Summary by Branch
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {Object.entries(stats.stockSummary).map(([branch, stock]) => {
+              // Handle if stock is still an object or a number
+              const stockValue = typeof stock === "object" ? 0 : stock;
+
+              return (
+                <div
+                  key={branch}
+                  className="backdrop-blur-sm bg-white/20 dark:bg-white/5 p-3 rounded-xl border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-sm font-semibold text-primary">
+                      {branch}
+                    </h3>
+                    <FileText className="w-4 h-4 text-secondary" />
+                  </div>
+                  <p className="text-xl font-bold text-primary">
+                    {formatNumber(stockValue)}
+                  </p>
+                  <p className="text-xs text-secondary">
+                    Available certificates
+                  </p>
                 </div>
-                <p className="text-2xl font-bold text-primary">
-                  {formatNumber(stock)}
-                </p>
-                <p className="text-xs text-secondary mt-1">
-                  Available certificates
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
-        </Card>
+        </div>
       )}
 
       {/* Recent Activity */}
-      <Card title="Recent Activity" padding="default">
-        <div className="space-y-4">
-          {/* Sample activity items - replace with real data */}
-          <div className="flex items-start gap-4 p-3 bg-surface border border-secondary/10 rounded-lg">
-            <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+      <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-4 border border-gray-200/50 dark:border-white/10 shadow-lg">
+        <h2 className="text-sm font-semibold text-primary mb-3">
+          Recent Activity
+        </h2>
+        <div className="space-y-2">
+          <div className="backdrop-blur-sm bg-white/20 dark:bg-white/5 rounded-xl p-2 border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all flex items-start gap-2">
+            <div className="p-1.5 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 shadow-md">
+              <FileText className="w-4 h-4 text-white" />
             </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-primary">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-primary">
                 New certificate batch added
               </p>
-              <p className="text-xs text-secondary mt-1">
-                50 certificates added to SND branch
+              <p className="text-xs text-secondary">
+                50 certificates added to SND
               </p>
             </div>
-            <p className="text-xs text-secondary">
-              {formatDate(new Date(), "dd MMM HH:mm")}
+            <p className="text-xs text-secondary whitespace-nowrap">
+              {formatDate(new Date(), "dd MMM")}
             </p>
           </div>
 
-          <div className="flex items-start gap-4 p-3 bg-surface border border-secondary/10 rounded-lg">
-            <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
-              <Users className="w-5 h-5 text-green-600 dark:text-green-400" />
+          <div className="backdrop-blur-sm bg-white/20 dark:bg-white/5 rounded-xl p-2 border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all flex items-start gap-2">
+            <div className="p-1.5 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 shadow-md">
+              <Users className="w-4 h-4 text-white" />
             </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-primary">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-primary">
                 New teacher registered
               </p>
-              <p className="text-xs text-secondary mt-1">
-                Teacher added to MKW branch
-              </p>
+              <p className="text-xs text-secondary">Teacher added to MKW</p>
             </div>
-            <p className="text-xs text-secondary">
-              {formatDate(new Date(), "dd MMM HH:mm")}
+            <p className="text-xs text-secondary whitespace-nowrap">
+              {formatDate(new Date(), "dd MMM")}
             </p>
           </div>
 
-          <div className="flex items-start gap-4 p-3 bg-surface border border-secondary/10 rounded-lg">
-            <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-              <BookOpen className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+          <div className="backdrop-blur-sm bg-white/20 dark:bg-white/5 rounded-xl p-2 border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all flex items-start gap-2">
+            <div className="p-1.5 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 shadow-md">
+              <BookOpen className="w-4 h-4 text-white" />
             </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-primary">Module updated</p>
-              <p className="text-xs text-secondary mt-1">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-primary">Module updated</p>
+              <p className="text-xs text-secondary">
                 Age range modified for JK-001
               </p>
             </div>
-            <p className="text-xs text-secondary">
-              {formatDate(new Date(), "dd MMM HH:mm")}
+            <p className="text-xs text-secondary whitespace-nowrap">
+              {formatDate(new Date(), "dd MMM")}
             </p>
           </div>
         </div>
 
-        <div className="mt-4 pt-4 border-t border-secondary/10">
+        <div className="mt-3 pt-3 border-t border-gray-200/30 dark:border-white/5">
           <Button
             variant="ghost"
-            size="medium"
+            size="small"
             onClick={() => navigate("/admin/logs")}
-            icon={<ArrowRight className="w-4 h-4" />}
+            icon={<ArrowRight className="w-3 h-3" />}
             iconPosition="right"
           >
             View All Activity
           </Button>
         </div>
-      </Card>
+      </div>
     </div>
   );
 };

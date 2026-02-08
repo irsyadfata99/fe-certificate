@@ -14,12 +14,6 @@ import { useAuth } from "@hooks/useAuth";
 /**
  * Sidebar Component
  * Side navigation menu dengan role-based menu items
- *
- * Features:
- * - Different menus for Admin & Teacher
- * - Active state indication
- * - Mobile responsive
- * - Smooth transitions
  */
 const Sidebar = ({ isOpen, onClose }) => {
   const { user, isAdmin } = useAuth();
@@ -118,14 +112,14 @@ const Sidebar = ({ isOpen, onClose }) => {
         className={`
           fixed lg:sticky top-0 left-0 z-40
           h-screen w-64
-          bg-surface border-r border-secondary/20
+          bg-surface
           transform transition-transform duration-300 ease-in-out
           flex flex-col
           ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-4 border-b border-secondary/10">
+        <div className="flex items-center justify-between px-4 py-4">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <span className="text-white font-bold text-lg">C</span>
@@ -154,7 +148,7 @@ const Sidebar = ({ isOpen, onClose }) => {
 
         {/* Footer - User Info */}
         {user && (
-          <div className="px-4 py-3 border-t border-secondary/10">
+          <div className="px-4 py-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                 <span className="text-primary font-semibold">
