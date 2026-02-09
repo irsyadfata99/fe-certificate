@@ -204,43 +204,30 @@ const Certificates = () => {
   // =====================================================
 
   const calculateCumulativeTotals = (certificateList) => {
-    const cumulativeByBranch = {};
+    let cumulativeCerts = 0;
+    let cumulativeMedals = 0;
 
-    // Initialize cumulative counters for each branch
-    branches.forEach((branch) => {
-      cumulativeByBranch[branch.branch_code] = {
-        certificates: 0,
-        medals: 0,
-      };
-    });
-
-    // Calculate cumulative totals
     return certificateList.map((cert) => {
       const stockByBranch = cert.stock_by_branch || [];
 
-      // Update cumulative for each branch
-      stockByBranch.forEach((stock) => {
-        if (cumulativeByBranch[stock.branch_code]) {
-          cumulativeByBranch[stock.branch_code].certificates +=
-            stock.certificates || 0;
-          cumulativeByBranch[stock.branch_code].medals += stock.medals || 0;
-        }
-      });
+      // Calculate total for this batch
+      const batchCerts = stockByBranch.reduce(
+        (sum, stock) => sum + (stock.certificates || 0),
+        0,
+      );
+      const batchMedals = stockByBranch.reduce(
+        (sum, stock) => sum + (stock.medals || 0),
+        0,
+      );
 
-      // Calculate total cumulative across all branches
-      let totalCumulativeCert = 0;
-      let totalCumulativeMedal = 0;
-
-      Object.values(cumulativeByBranch).forEach((branchCumulative) => {
-        totalCumulativeCert += branchCumulative.certificates;
-        totalCumulativeMedal += branchCumulative.medals;
-      });
+      // Add to cumulative
+      cumulativeCerts += batchCerts;
+      cumulativeMedals += batchMedals;
 
       return {
         ...cert,
-        cumulative_by_branch: { ...cumulativeByBranch },
-        cumulative_total_cert: totalCumulativeCert,
-        cumulative_total_medal: totalCumulativeMedal,
+        cumulative_total_cert: cumulativeCerts,
+        cumulative_total_medal: cumulativeMedals,
       };
     });
   };
@@ -501,6 +488,29 @@ const Certificates = () => {
     (branch) => branch.branch_code !== centralBranch?.branch_code,
   );
 
+  // =====================================================
+  // REORDER BRANCHES: SND, MKW, KBP
+  // =====================================================
+  const getOrderedBranches = () => {
+    const order = ["SND", "MKW", "KBP"];
+    return [...branches].sort((a, b) => {
+      const indexA = order.indexOf(a.branch_code);
+      const indexB = order.indexOf(b.branch_code);
+
+      // If both codes are in the order array, sort by their position
+      if (indexA !== -1 && indexB !== -1) {
+        return indexA - indexB;
+      }
+      // If only one is in the order array, prioritize it
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+      // If neither is in the order array, maintain original order
+      return 0;
+    });
+  };
+
+  const orderedBranches = getOrderedBranches();
+
   // Branch color mapping (for consistent colors)
   const getBranchColor = (branchCode) => {
     const colors = {
@@ -691,8 +701,8 @@ const Certificates = () => {
                       </div>
                     </th>
 
-                    {/* Dynamic Branch Columns */}
-                    {branches.map((branch) => (
+                    {/* Dynamic Branch Columns - REORDERED: SND, MKW, KBP */}
+                    {orderedBranches.map((branch) => (
                       <th
                         key={branch.branch_code}
                         className="px-6 py-4 text-center text-sm font-semibold text-primary uppercase"
@@ -711,11 +721,6 @@ const Certificates = () => {
                       Total Batch
                     </th>
 
-                    {/* Cumulative Total */}
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-primary uppercase">
-                      Cumulative
-                    </th>
-
                     {/* Created */}
                     <th
                       onClick={() => handleSort("created_at")}
@@ -730,8 +735,6 @@ const Certificates = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-200/30 dark:divide-white/5">
                   {certificates.map((cert) => {
-                    const batchTotal = getBatchTotal(cert);
-
                     return (
                       <tr
                         key={cert.id}
@@ -749,8 +752,8 @@ const Certificates = () => {
                           </div>
                         </td>
 
-                        {/* Dynamic Branch Stock Columns */}
-                        {branches.map((branch) => {
+                        {/* Dynamic Branch Stock Columns - REORDERED */}
+                        {orderedBranches.map((branch) => {
                           const stock = getBranchStock(
                             cert,
                             branch.branch_code,
@@ -769,19 +772,7 @@ const Certificates = () => {
                           );
                         })}
 
-                        {/* Total Batch */}
-                        <td className="px-6 py-4">
-                          <div className="text-center">
-                            <p className="text-sm font-semibold text-primary">
-                              {formatNumber(batchTotal.certificates)} certs
-                            </p>
-                            <p className="text-xs text-secondary">
-                              {formatNumber(batchTotal.medals)} medals
-                            </p>
-                          </div>
-                        </td>
-
-                        {/* Cumulative Total */}
+                        {/* Total Batch - NOW SHOWING CUMULATIVE */}
                         <td className="px-6 py-4">
                           <div className="text-center">
                             <p className="text-sm font-semibold text-primary">
