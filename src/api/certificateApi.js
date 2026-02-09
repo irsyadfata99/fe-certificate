@@ -1,139 +1,183 @@
-import axiosInstance from "./axiosConfig";
-import { ENDPOINTS } from "../utils/constants";
-import { handleApiError } from "../utils/errorHandler";
-import { handleOperationSuccess } from "../utils/successHandler";
+import api from "./axiosConfig";
+import { handleApiError } from "@utils/errorHandler";
+import { toast } from "react-hot-toast";
 
-/**
- * Certificate API Service
- * Handles certificate CRUD and operations
- */
+// =====================================================
+// CERTIFICATE API
+// =====================================================
 
 /**
  * Get all certificates with pagination
- * @param {Object} params - { limit, offset }
- * @returns {Promise} Certificates list with pagination
+ * @param {Object} params - Query parameters
+ * @param {number} params.limit - Number of items per page
+ * @param {number} params.offset - Offset for pagination
+ * @param {string} params.search - Search term (optional)
+ * @returns {Promise} API response
  */
 export const getCertificates = async (params = {}) => {
   try {
-    const response = await axiosInstance.get(ENDPOINTS.CERTIFICATES, {
-      params,
+    const { limit = 10, offset = 0, search = "" } = params;
+
+    const queryParams = new URLSearchParams({
+      limit: limit.toString(),
+      offset: offset.toString(),
     });
+
+    if (search && search.trim()) {
+      queryParams.append("search", search.trim());
+    }
+
+    const response = await api.get(`/certificates?${queryParams.toString()}`);
+
     return response.data;
   } catch (error) {
-    handleApiError(error);
+    handleApiError(error, { showToast: true });
     throw error;
   }
 };
 
 /**
- * Get certificate by ID
- * @param {string} certificateId
- * @returns {Promise} Certificate data
+ * Get single certificate by ID
+ * @param {string} certificateId - Certificate batch ID
+ * @returns {Promise} API response
  */
 export const getCertificateById = async (certificateId) => {
   try {
-    const response = await axiosInstance.get(
-      ENDPOINTS.CERTIFICATE_BY_ID(certificateId),
-    );
+    const response = await api.get(`/certificates/${certificateId}`);
+
     return response.data;
   } catch (error) {
-    handleApiError(error);
+    handleApiError(error, { showToast: true });
     throw error;
   }
 };
 
 /**
  * Create new certificate batch
- * @param {Object} data - Certificate batch data
- * @returns {Promise} Created certificate
+ * Backend automatically creates stock for central branch (SND)
+ * @param {Object} data - Certificate data
+ * @param {string} data.certificate_id - Batch ID
+ * @param {number} data.jumlah_sertifikat - Number of certificates
+ * @param {number} data.jumlah_medali - Number of medals
+ * @returns {Promise} API response
  */
 export const createCertificate = async (data) => {
   try {
-    const response = await axiosInstance.post(ENDPOINTS.CERTIFICATES, data);
-
-    if (response.data.success) {
-      handleOperationSuccess("create", response.data.data);
-      return response.data;
-    }
-
-    throw new Error(response.data.message || "Create failed");
-  } catch (error) {
-    handleApiError(error);
-    throw error;
-  }
-};
-
-/**
- * Get stock summary
- * @returns {Promise} Stock summary data
- */
-export const getStockSummary = async () => {
-  try {
-    const response = await axiosInstance.get(ENDPOINTS.CERTIFICATE_SUMMARY);
-    return response.data;
-  } catch (error) {
-    handleApiError(error);
-    throw error;
-  }
-};
-
-/**
- * Get transaction history
- * @param {Object} params - { limit, offset, from_date, to_date }
- * @returns {Promise} Transaction history
- */
-export const getTransactionHistory = async (params = {}) => {
-  try {
-    const response = await axiosInstance.get(ENDPOINTS.CERTIFICATE_HISTORY, {
-      params,
+    const response = await api.post("/certificates", {
+      certificate_id: data.certificate_id,
+      jumlah_sertifikat: parseInt(data.jumlah_sertifikat) || 0,
+      jumlah_medali: parseInt(data.jumlah_medali) || 0,
     });
+
+    toast.success(response.data?.message || "Certificate batch created successfully");
+
     return response.data;
   } catch (error) {
-    handleApiError(error);
+    handleApiError(error, { showToast: true });
     throw error;
   }
 };
 
 /**
- * Migrate certificate stock
+ * Migrate certificate stock from central branch to another branch
  * @param {Object} data - Migration data
- * @returns {Promise} Migration result
+ * @param {string} data.certificate_id - Batch ID to migrate
+ * @param {string} data.destination_branch - Branch code to migrate to (e.g., 'MKW', 'KBP')
+ * @param {number} data.certificate_amount - Number of certificates to migrate
+ * @param {number} data.medal_amount - Number of medals to migrate
+ * @returns {Promise} API response
  */
 export const migrateCertificate = async (data) => {
   try {
-    const response = await axiosInstance.post(
-      ENDPOINTS.CERTIFICATE_MIGRATE,
-      data,
-    );
+    const response = await api.post("/certificates/migrate", {
+      certificate_id: data.certificate_id,
+      destination_branch: data.destination_branch,
+      certificate_amount: parseInt(data.certificate_amount) || 0,
+      medal_amount: parseInt(data.medal_amount) || 0,
+    });
 
-    if (response.data.success) {
-      handleOperationSuccess("migrate", response.data.data);
-      return response.data;
-    }
+    toast.success(response.data?.message || "Stock migrated successfully");
 
-    throw new Error(response.data.message || "Migration failed");
+    return response.data;
   } catch (error) {
-    handleApiError(error);
+    handleApiError(error, { showToast: true });
     throw error;
   }
 };
 
 /**
- * Clear all certificates
- * @returns {Promise} Clear result
+ * Get stock summary across all branches
+ * @returns {Promise} API response with stock summary
+ */
+export const getStockSummary = async () => {
+  try {
+    const response = await api.get("/certificates/summary");
+
+    return response.data;
+  } catch (error) {
+    handleApiError(error, { showToast: true });
+    throw error;
+  }
+};
+
+/**
+ * Get transaction history with filters
+ * @param {Object} params - Query parameters
+ * @param {number} params.limit - Number of items per page
+ * @param {number} params.offset - Offset for pagination
+ * @param {string} params.from_date - Start date (YYYY-MM-DD)
+ * @param {string} params.to_date - End date (YYYY-MM-DD)
+ * @returns {Promise} API response
+ */
+export const getTransactionHistory = async (params = {}) => {
+  try {
+    const { limit = 50, offset = 0, from_date = "", to_date = "" } = params;
+
+    const queryParams = new URLSearchParams({
+      limit: limit.toString(),
+      offset: offset.toString(),
+    });
+
+    if (from_date && from_date.trim()) {
+      queryParams.append("from_date", from_date.trim());
+    }
+
+    if (to_date && to_date.trim()) {
+      queryParams.append("to_date", to_date.trim());
+    }
+
+    const response = await api.get(`/certificates/history?${queryParams.toString()}`);
+
+    return response.data;
+  } catch (error) {
+    handleApiError(error, { showToast: true });
+    throw error;
+  }
+};
+
+/**
+ * Clear all certificate batches (DANGER)
+ * @returns {Promise} API response
  */
 export const clearAllCertificates = async () => {
   try {
-    const response = await axiosInstance.post(ENDPOINTS.CERTIFICATE_CLEAR);
+    const response = await api.post("/certificates/clear-all");
 
-    if (response.data.success) {
-      handleOperationSuccess("delete", response.data.data);
-      return response.data;
-    }
+    toast.success(response.data?.message || "All certificates cleared successfully");
 
-    throw new Error(response.data.message || "Clear failed");
+    return response.data;
   } catch (error) {
-    handleApiError(error);
+    handleApiError(error, { showToast: true });
     throw error;
   }
+};
+
+export default {
+  getCertificates,
+  getCertificateById,
+  createCertificate,
+  migrateCertificate,
+  getStockSummary,
+  getTransactionHistory,
+  clearAllCertificates,
 };
