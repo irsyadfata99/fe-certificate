@@ -42,6 +42,8 @@ export const ROLE_LABELS = {
 // BRANCHES
 // =====================================================
 
+export const CENTRAL_BRANCH = "SND";
+
 export const BRANCHES = {
   SND: "SND",
   MKW: "MKW",
@@ -49,11 +51,12 @@ export const BRANCHES = {
 };
 
 export const BRANCH_LABELS = {
-  [BRANCHES.SND]: "Sudirman",
-  [BRANCHES.MKW]: "Makwana",
-  [BRANCHES.KBP]: "Kopo Permai",
+  [BRANCHES.SND]: "Sunda",
+  [BRANCHES.MKW]: "Mekarwangi",
+  [BRANCHES.KBP]: "Kota Baru Parahyangan",
 };
 
+// Note: Use useBranchOptions() hook for dynamic branch options
 export const BRANCH_OPTIONS = Object.entries(BRANCH_LABELS).map(([value, label]) => ({
   value,
   label,
@@ -156,6 +159,7 @@ export const ENDPOINTS = {
 
   // ========== BRANCHES ==========
   BRANCHES: "/branches",
+  BRANCH_BY_ID: (id) => `/branches/${id}`,
   BRANCHES_STATS: "/branches/stats",
 
   // ========== PRINTED CERTIFICATES ==========

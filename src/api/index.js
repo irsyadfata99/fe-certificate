@@ -19,7 +19,7 @@ export * from "./moduleApi";
 export * from "./studentsApi";
 
 // Branches
-export * from "./branchesApi";
+export * from "./branchApi";
 
 // Printed Certificate
 export * from "./printedCertApi";
