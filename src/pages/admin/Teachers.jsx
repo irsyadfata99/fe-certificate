@@ -22,7 +22,7 @@ const Teachers = () => {
   // Pagination state
   const [pagination, setPagination] = useState({
     currentPage: 1,
-    pageSize: 10,
+    pageSize: 8,
     total: 0,
     totalPages: 0,
   });
@@ -30,6 +30,10 @@ const Teachers = () => {
   // Search state
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebounce(searchTerm, 500);
+
+  // Filter states
+  const [filterDivision, setFilterDivision] = useState("");
+  const [filterBranch, setFilterBranch] = useState("");
 
   // Sorting state
   const [sortConfig, setSortConfig] = useState({
@@ -144,34 +148,62 @@ const Teachers = () => {
     setError(null);
 
     try {
-      const offset = (pagination.currentPage - 1) * pagination.pageSize;
-
-      const params = {
-        limit: pagination.pageSize,
-        offset,
-      };
+      // Fetch all data without pagination params (backend limitation)
+      const params = {};
 
       const response = await getTeachers(params);
+
+      console.log("=== TEACHERS API RESPONSE ===");
+      console.log("Full response:", response);
+      console.log("Response data:", response.data);
 
       if (response.success) {
         let fetchedTeachers = response.data || [];
 
-        // Client-side search filtering
+        // CLIENT-SIDE FILTERING - Search
         if (debouncedSearch.trim()) {
           const searchLower = debouncedSearch.toLowerCase().trim();
           fetchedTeachers = fetchedTeachers.filter((teacher) => teacher.username.toLowerCase().includes(searchLower) || teacher.teacher_name.toLowerCase().includes(searchLower) || teacher.teacher_branch.toLowerCase().includes(searchLower));
         }
 
+        // CLIENT-SIDE FILTERING - Division
+        if (filterDivision) {
+          fetchedTeachers = fetchedTeachers.filter((teacher) => teacher.teacher_division === filterDivision);
+        }
+
+        // CLIENT-SIDE FILTERING - Branch
+        if (filterBranch) {
+          fetchedTeachers = fetchedTeachers.filter((teacher) => teacher.teacher_branch === filterBranch);
+        }
+
+        // Get total after filtering
+        const totalFiltered = fetchedTeachers.length;
+
         // Client-side sorting
         fetchedTeachers = sortTeachers(fetchedTeachers, sortConfig.key, sortConfig.direction);
 
-        setTeachers(fetchedTeachers);
+        // CLIENT-SIDE PAGINATION
+        const startIndex = (pagination.currentPage - 1) * pagination.pageSize;
+        const endIndex = startIndex + pagination.pageSize;
+        const paginatedTeachers = fetchedTeachers.slice(startIndex, endIndex);
 
-        const totalFromBackend = response.pagination?.total || 0;
+        setTeachers(paginatedTeachers);
+
+        // Calculate pagination based on filtered data
+        const totalPagesCalculated = Math.ceil(totalFiltered / pagination.pageSize) || 1;
+
+        console.log("=== PAGINATION DEBUG ===");
+        console.log("Total filtered:", totalFiltered);
+        console.log("Page size:", pagination.pageSize);
+        console.log("Total pages calculated:", totalPagesCalculated);
+        console.log("Current page:", pagination.currentPage);
+        console.log("Showing teachers:", paginatedTeachers.length);
+        console.log("Pagination state BEFORE update:", pagination);
+
         setPagination((prev) => ({
           ...prev,
-          total: totalFromBackend,
-          totalPages: Math.ceil(totalFromBackend / prev.pageSize) || 1,
+          total: totalFiltered,
+          totalPages: totalPagesCalculated,
         }));
       }
     } catch (err) {
@@ -180,7 +212,7 @@ const Teachers = () => {
     } finally {
       setLoading(false);
     }
-  }, [pagination.currentPage, pagination.pageSize, debouncedSearch, sortConfig.key, sortConfig.direction]);
+  }, [pagination.currentPage, pagination.pageSize, debouncedSearch, filterDivision, filterBranch, sortConfig.key, sortConfig.direction]);
 
   useEffect(() => {
     fetchTeachers();
@@ -359,7 +391,7 @@ const Teachers = () => {
   };
 
   // =====================================================
-  // HANDLERS - SEARCH
+  // HANDLERS - SEARCH & FILTERS
   // =====================================================
 
   const handleSearchChange = (e) => {
@@ -369,6 +401,23 @@ const Teachers = () => {
 
   const handleClearSearch = () => {
     setSearchTerm("");
+    setPagination((prev) => ({ ...prev, currentPage: 1 }));
+  };
+
+  const handleDivisionFilterChange = (e) => {
+    setFilterDivision(e.target.value);
+    setPagination((prev) => ({ ...prev, currentPage: 1 }));
+  };
+
+  const handleBranchFilterChange = (e) => {
+    setFilterBranch(e.target.value);
+    setPagination((prev) => ({ ...prev, currentPage: 1 }));
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setFilterDivision("");
+    setFilterBranch("");
     setPagination((prev) => ({ ...prev, currentPage: 1 }));
   };
 
@@ -466,25 +515,88 @@ const Teachers = () => {
         </div>
       </div>
 
-      {/* Search Bar */}
+      {/* Search and Filter Bar */}
       <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-4 border border-gray-200/50 dark:border-white/10 shadow-lg">
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <Input
-              name="search"
-              value={searchTerm}
-              onChange={handleSearchChange}
-              placeholder="Search by username, name, or branch..."
-              prefixIcon={<Search className="w-5 h-5" />}
-              suffixIcon={
-                searchTerm ? (
-                  <button onClick={handleClearSearch} className="text-secondary hover:text-primary transition-colors">
-                    <X className="w-5 h-5" />
-                  </button>
-                ) : null
-              }
-            />
+        <div className="space-y-3">
+          {/* Search Input */}
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <Input
+                name="search"
+                value={searchTerm}
+                onChange={handleSearchChange}
+                placeholder="Search by username, name, or branch..."
+                prefixIcon={<Search className="w-5 h-5" />}
+                suffixIcon={
+                  searchTerm ? (
+                    <button onClick={handleClearSearch} className="text-secondary hover:text-primary transition-colors">
+                      <X className="w-5 h-5" />
+                    </button>
+                  ) : null
+                }
+              />
+            </div>
           </div>
+
+          {/* Filter Options */}
+          <div className="flex flex-wrap gap-3">
+            {/* Division Filter */}
+            <div className="flex-1 min-w-[200px]">
+              <select
+                value={filterDivision}
+                onChange={handleDivisionFilterChange}
+                className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              >
+                <option value="">All Divisions</option>
+                <option value="JK">JK - Junior Koders</option>
+                <option value="LK">LK - Little Koders</option>
+              </select>
+            </div>
+
+            {/* Branch Filter */}
+            <div className="flex-1 min-w-[200px]">
+              <select
+                value={filterBranch}
+                onChange={handleBranchFilterChange}
+                className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              >
+                <option value="">All Branches</option>
+                <option value="SND">SND - Sindanglaya</option>
+                <option value="MKW">MKW - Margahayu</option>
+                <option value="KBP">KBP - Kopo</option>
+              </select>
+            </div>
+
+            {/* Clear Filters Button */}
+            {(searchTerm || filterDivision || filterBranch) && (
+              <Button variant="ghost" size="medium" onClick={handleClearFilters} icon={<X className="w-4 h-4" />}>
+                Clear All
+              </Button>
+            )}
+          </div>
+
+          {/* Active Filters Display */}
+          {(filterDivision || filterBranch) && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-secondary font-medium">Active filters:</span>
+              {filterDivision && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-lg text-xs">
+                  Division: {filterDivision}
+                  <button onClick={() => setFilterDivision("")} className="hover:bg-primary/20 rounded">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {filterBranch && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-lg text-xs">
+                  Branch: {filterBranch}
+                  <button onClick={() => setFilterBranch("")} className="hover:bg-primary/20 rounded">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -603,12 +715,12 @@ const Teachers = () => {
               </table>
 
               {/* Pagination */}
-              {pagination.totalPages > 1 && (
-                <div className="p-6 border-t border-gray-200/50 dark:border-white/10">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-secondary">
-                      Showing {(pagination.currentPage - 1) * pagination.pageSize + 1} to {Math.min(pagination.currentPage * pagination.pageSize, pagination.total)} of {pagination.total} teachers
-                    </p>
+              <div className="p-6 border-t border-gray-200/50 dark:border-white/10">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-secondary">
+                    Showing {(pagination.currentPage - 1) * pagination.pageSize + 1} to {Math.min(pagination.currentPage * pagination.pageSize, pagination.total)} of {pagination.total} teachers
+                  </p>
+                  {pagination.totalPages > 1 && (
                     <div className="flex items-center gap-2">
                       <Button variant="ghost" size="small" icon={<ChevronLeft className="w-4 h-4" />} onClick={() => handlePageChange(pagination.currentPage - 1)} disabled={pagination.currentPage === 1}>
                         Previous
@@ -647,9 +759,9 @@ const Teachers = () => {
                         Next
                       </Button>
                     </div>
-                  </div>
+                  )}
                 </div>
-              )}
+              </div>
             </>
           )}
         </div>

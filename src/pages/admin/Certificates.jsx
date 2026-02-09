@@ -22,7 +22,7 @@ const Certificates = () => {
   // Pagination state
   const [pagination, setPagination] = useState({
     currentPage: 1,
-    pageSize: 10,
+    pageSize: 8,
     total: 0,
     totalPages: 0,
   });
@@ -114,26 +114,40 @@ const Certificates = () => {
         offset,
       };
 
+      // Add search param if exists
+      if (debouncedSearch.trim()) {
+        params.search = debouncedSearch.trim();
+      }
+
       const response = await getCertificates(params);
+
+      console.log("=== CERTIFICATES API RESPONSE ===");
+      console.log("Full response:", response);
+      console.log("Response data:", response.data);
+      console.log("Response meta:", response.meta);
+      console.log("Response meta.pagination:", response.meta?.pagination);
 
       if (response.success) {
         let fetchedCertificates = response.data || [];
 
-        // Client-side search filtering
-        if (debouncedSearch.trim()) {
-          fetchedCertificates = fetchedCertificates.filter((cert) => cert.certificate_id.toLowerCase().includes(debouncedSearch.toLowerCase().trim()));
-        }
-
-        // Client-side sorting
+        // Client-side sorting only (backend handles filtering)
         fetchedCertificates = sortCertificates(fetchedCertificates, sortConfig.key, sortConfig.direction);
 
         setCertificates(fetchedCertificates);
 
-        const totalFromBackend = response.pagination?.total || 0;
+        // FIX: Backend sends pagination data in response.meta.pagination (sama seperti Modules)
+        const paginationData = response.meta?.pagination || {};
+        const totalFromBackend = paginationData.total || 0;
+        const totalPagesFromBackend = paginationData.totalPages || Math.ceil(totalFromBackend / pagination.pageSize) || 1;
+
+        console.log("Pagination data:", paginationData);
+        console.log("Total from backend:", totalFromBackend);
+        console.log("Total pages:", totalPagesFromBackend);
+
         setPagination((prev) => ({
           ...prev,
           total: totalFromBackend,
-          totalPages: Math.ceil(totalFromBackend / prev.pageSize) || 1,
+          totalPages: totalPagesFromBackend,
         }));
       }
     } catch (err) {
