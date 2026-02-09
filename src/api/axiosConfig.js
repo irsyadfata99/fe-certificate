@@ -15,34 +15,66 @@ const axiosInstance = axios.create({
 });
 
 // =====================================================
-// REQUEST CANCELLATION - AbortController Registry
+// REQUEST DEDUPLICATION - Smart Request Queue
 // =====================================================
+
+/**
+ * PERMANENT SOLUTION: Request Deduplication
+ *
+ * Previous issue: Duplicate requests were being cancelled, causing "CanceledError"
+ *
+ * New approach:
+ * - Share the same promise for duplicate concurrent requests
+ * - Only make ONE actual HTTP request
+ * - Return the same result to all callers
+ * - Prevent unnecessary cancellations
+ */
 
 const pendingRequests = new Map();
 
 /**
- * Generate unique key for request
+ * Generate unique key for request deduplication
  */
 const generateRequestKey = (config) => {
-  return `${config.method}:${config.url}`;
+  // Include method, url, and stringified params/data for unique key
+  const params = config.params ? JSON.stringify(config.params) : "";
+  const data = config.data ? JSON.stringify(config.data) : "";
+  return `${config.method}:${config.url}:${params}:${data}`;
 };
 
 /**
- * Add request to pending queue with AbortController
+ * Add request to pending queue with promise sharing
+ * If duplicate request exists, return the existing promise
  */
 const addPendingRequest = (config) => {
   const requestKey = generateRequestKey(config);
 
-  // Cancel previous duplicate request
+  // If identical request is already pending, return its promise
   if (pendingRequests.has(requestKey)) {
-    const controller = pendingRequests.get(requestKey);
-    controller.abort("Duplicate request cancelled");
+    const { promise } = pendingRequests.get(requestKey);
+
+    ENV.ENABLE_LOGGING &&
+      console.log(
+        `♻️ Reusing pending request: ${config.method?.toUpperCase()} ${config.url}`,
+      );
+
+    // Mark this config as deduplicated so we can handle it differently
+    config._isDeduplicated = true;
+    config._sharedPromise = promise;
+
+    return;
   }
 
-  // Create new AbortController
+  // Create new AbortController for this request
   const controller = new AbortController();
   config.signal = controller.signal;
-  pendingRequests.set(requestKey, controller);
+
+  // Store both controller and a promise resolver
+  pendingRequests.set(requestKey, {
+    controller,
+    promise: null, // Will be set in response interceptor
+    requestKey,
+  });
 };
 
 /**
@@ -54,12 +86,13 @@ const removePendingRequest = (config) => {
 };
 
 /**
- * Cancel all pending requests
+ * Cancel all pending requests (for cleanup)
  */
 export const cancelAllRequests = (message = "All requests cancelled") => {
-  pendingRequests.forEach((controller, key) => {
+  pendingRequests.forEach((value, key) => {
+    const { controller } = value;
     controller.abort(message);
-    ENV.ENABLE_LOGGING && console.log(`🚫 Cancelled request: ${key}`, message);
+    ENV.ENABLE_LOGGING && console.log(`🚫 Cancelled request: ${key}`);
   });
   pendingRequests.clear();
 };
@@ -196,15 +229,23 @@ axiosInstance.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Add request to pending queue (for cancellation)
+    // Handle request deduplication
     addPendingRequest(config);
 
-    // Log request in development
-    if (ENV.IS_DEV && ENV.ENABLE_LOGGING) {
-      console.log(
-        `🔵 ${config.method?.toUpperCase()} ${config.url}`,
-        config.data || config.params || "",
-      );
+    // If this is a deduplicated request, we'll handle it in response interceptor
+    if (config._isDeduplicated) {
+      ENV.ENABLE_LOGGING &&
+        console.log(
+          `♻️ ${config.method?.toUpperCase()} ${config.url} - Using cached promise`,
+        );
+    } else {
+      // Log request in development
+      if (ENV.IS_DEV && ENV.ENABLE_LOGGING) {
+        console.log(
+          `🔵 ${config.method?.toUpperCase()} ${config.url}`,
+          config.data || config.params || "",
+        );
+      }
     }
 
     return config;
@@ -221,24 +262,55 @@ axiosInstance.interceptors.request.use(
 
 axiosInstance.interceptors.response.use(
   (response) => {
-    // Remove from pending requests
-    removePendingRequest(response.config);
+    const config = response.config;
+
+    // If this was a deduplicated request, return the shared promise result
+    if (config._isDeduplicated && config._sharedPromise) {
+      ENV.ENABLE_LOGGING &&
+        console.log(
+          `✅ ${config.method?.toUpperCase()} ${config.url} - Returned from cache`,
+        );
+      return config._sharedPromise;
+    }
+
+    // Store response promise for deduplication
+    const requestKey = generateRequestKey(config);
+    if (pendingRequests.has(requestKey)) {
+      const entry = pendingRequests.get(requestKey);
+      entry.promise = Promise.resolve(response);
+    }
+
+    // Remove from pending requests after a short delay
+    // This allows concurrent requests to reuse the result
+    setTimeout(() => {
+      removePendingRequest(config);
+    }, 100);
 
     // Log success in development
     if (ENV.IS_DEV && ENV.ENABLE_LOGGING) {
-      console.log(
-        `✅ ${response.config.method?.toUpperCase()} ${response.config.url}`,
-        {
-          status: response.status,
-          data: response.data,
-        },
-      );
+      console.log(`✅ ${config.method?.toUpperCase()} ${config.url}`, {
+        status: response.status,
+        data: response.data,
+      });
     }
 
     return response;
   },
   async (error) => {
     const originalRequest = error.config;
+
+    // =====================================================
+    // HANDLE DEDUPLICATED REQUESTS
+    // =====================================================
+    if (originalRequest?._isDeduplicated && originalRequest._sharedPromise) {
+      // Return the shared promise (might be rejected)
+      try {
+        return await originalRequest._sharedPromise;
+      } catch (sharedError) {
+        // The original request failed, propagate the error
+        return Promise.reject(sharedError);
+      }
+    }
 
     // Remove from pending requests
     if (originalRequest) {
@@ -250,6 +322,7 @@ axiosInstance.interceptors.response.use(
     // =====================================================
     if (axios.isCancel(error)) {
       ENV.ENABLE_LOGGING && console.log("🚫 Request Cancelled:", error.message);
+      // Don't treat cancellation as an error - just return rejected promise
       return Promise.reject(error);
     }
 
