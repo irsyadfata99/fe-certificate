@@ -24,8 +24,12 @@ export const loginUser = async (credentials) => {
 
     throw new Error(response.data.message || "Login failed");
   } catch (error) {
+    // Let backend error message show through (e.g., "Invalid credentials", "User not found")
+    // Only use custom message as fallback if backend doesn't provide one
+    const backendMessage = error.response?.data?.message;
+
     handleApiError(error, {
-      customMessage: "Login failed. Please check your credentials.",
+      customMessage: backendMessage || "Login failed. Please check your credentials.",
     });
     throw error;
   }

@@ -22,6 +22,26 @@
   --color-success: #22c55e;
   --color-warning: #eab308;
   --color-error: #ef4444;
+
+  /* Toast Notifications - Light Mode */
+  --toast-bg: #ffffff;
+  --toast-text: #1f2937;
+  --toast-border: #e5e7eb;
+
+  /* Success toast */
+  --toast-success-bg: #ecfdf5;
+  --toast-success-text: #065f46;
+  --toast-success-border: #a7f3d0;
+
+  /* Error toast */
+  --toast-error-bg: #fef2f2;
+  --toast-error-text: #991b1b;
+  --toast-error-border: #fca5a5;
+
+  /* Loading toast */
+  --toast-loading-bg: #eff6ff;
+  --toast-loading-text: #1e40af;
+  --toast-loading-border: #bfdbfe;
 }
 
 /* ============================================= */
@@ -44,6 +64,26 @@
   --color-success: #22c55e;
   --color-warning: #eab308;
   --color-error: #ef4444;
+
+  /* Toast Notifications - Dark Mode */
+  --toast-bg: rgba(31, 41, 55, 0.95);
+  --toast-text: #f9fafb;
+  --toast-border: rgba(75, 85, 99, 0.3);
+
+  /* Success toast */
+  --toast-success-bg: rgba(6, 78, 59, 0.2);
+  --toast-success-text: #6ee7b7;
+  --toast-success-border: rgba(52, 211, 153, 0.3);
+
+  /* Error toast */
+  --toast-error-bg: rgba(127, 29, 29, 0.2);
+  --toast-error-text: #fca5a5;
+  --toast-error-border: rgba(248, 113, 113, 0.3);
+
+  /* Loading toast */
+  --toast-loading-bg: rgba(30, 58, 138, 0.2);
+  --toast-loading-text: #93c5fd;
+  --toast-loading-border: rgba(147, 197, 253, 0.3);
 }
 
 /* ============================================= */
@@ -56,9 +96,7 @@
 }
 
 body {
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
-    "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--color-background);
@@ -261,6 +299,14 @@ body {
 
 .input::placeholder {
   color: var(--color-text-secondary);
+}
+
+/* ============================================= */
+/* TOAST NOTIFICATIONS DARK MODE SUPPORT */
+/* ============================================= */
+.dark [data-sonner-toast],
+.dark .Toaster__toast {
+  backdrop-filter: blur(12px);
 }
 
 /* ============================================= */

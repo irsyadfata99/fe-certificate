@@ -4,6 +4,7 @@ import { useAuth } from "@hooks/useAuth";
 import Button from "@components/common/Button";
 import ThemeToggle from "@components/common/ThemeToggle";
 import { ENV } from "@config/env";
+import toast from "react-hot-toast"; // Import toast
 
 /**
  * Login Page - Redesigned with Glassmorphism
@@ -95,8 +96,18 @@ const Login = () => {
     } catch (error) {
       // Only unlock form on error
       setIsSubmitting(false);
-      // Error toast handled by API error handler
-      console.error("Login failed:", error);
+
+      // MANUAL ERROR TOAST - untuk memastikan toast muncul
+      console.error("❌ Login failed:", error);
+
+      // Extract error message
+      const errorMessage = error.response?.data?.message || error.message || "Login failed. Please check your credentials.";
+
+      // Show toast manually
+      toast.error(errorMessage, {
+        duration: 5000,
+        position: "top-right",
+      });
     }
   };
 
@@ -131,9 +142,7 @@ const Login = () => {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-primary">CMS</h1>
-                <p className="text-xs text-secondary">
-                  Certificate Management System
-                </p>
+                <p className="text-xs text-secondary">Certificate Management System</p>
               </div>
             </div>
             <ThemeToggle />
@@ -141,22 +150,15 @@ const Login = () => {
 
           {/* Welcome Message */}
           <div className="mb-8">
-            <h2 className="text-3xl font-bold text-primary mb-2">
-              Welcome Back! 👋
-            </h2>
-            <p className="text-secondary text-sm">
-              Sign in to access your dashboard
-            </p>
+            <h2 className="text-3xl font-bold text-primary mb-2">Welcome Back! 👋</h2>
+            <p className="text-secondary text-sm">Sign in to access your dashboard</p>
           </div>
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Username Input */}
             <div>
-              <label
-                htmlFor="username"
-                className="block text-sm font-medium text-primary mb-1.5"
-              >
+              <label htmlFor="username" className="block text-sm font-medium text-primary mb-1.5">
                 Username <span className="text-status-error">*</span>
               </label>
               <div className="relative">
@@ -190,19 +192,12 @@ const Login = () => {
                   `}
                 />
               </div>
-              {errors.username && (
-                <p className="mt-1.5 text-sm text-status-error">
-                  {errors.username}
-                </p>
-              )}
+              {errors.username && <p className="mt-1.5 text-sm text-status-error">{errors.username}</p>}
             </div>
 
             {/* Password Input */}
             <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-primary mb-1.5"
-              >
+              <label htmlFor="password" className="block text-sm font-medium text-primary mb-1.5">
                 Password <span className="text-status-error">*</span>
               </label>
               <div className="relative">
@@ -234,38 +229,15 @@ const Login = () => {
                     disabled:opacity-50 disabled:cursor-not-allowed
                   `}
                 />
-                <button
-                  type="button"
-                  onClick={togglePasswordVisibility}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-primary/10 rounded transition-colors text-secondary"
-                  tabIndex={-1}
-                  disabled={isSubmitting}
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-5 h-5" />
-                  ) : (
-                    <Eye className="w-5 h-5" />
-                  )}
+                <button type="button" onClick={togglePasswordVisibility} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-primary/10 rounded transition-colors text-secondary" tabIndex={-1} disabled={isSubmitting}>
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              {errors.password && (
-                <p className="mt-1.5 text-sm text-status-error">
-                  {errors.password}
-                </p>
-              )}
+              {errors.password && <p className="mt-1.5 text-sm text-status-error">{errors.password}</p>}
             </div>
 
             {/* Submit Button */}
-            <Button
-              type="submit"
-              variant="primary"
-              size="large"
-              fullWidth
-              loading={isSubmitting}
-              disabled={isSubmitting}
-              icon={<LogIn className="w-5 h-5" />}
-              className="mt-6"
-            >
+            <Button type="submit" variant="primary" size="large" fullWidth loading={isSubmitting} disabled={isSubmitting} icon={<LogIn className="w-5 h-5" />} className="mt-6">
               {isSubmitting ? "Signing in..." : "Sign In"}
             </Button>
           </form>
@@ -280,9 +252,7 @@ const Login = () => {
 
         {/* Security Notice */}
         <div className="mt-3 backdrop-blur-sm bg-white/20 dark:bg-white/5 rounded-xl p-3 border border-gray-200/30 dark:border-white/5">
-          <p className="text-xs text-secondary text-center">
-            🔒 Your credentials are encrypted and secure
-          </p>
+          <p className="text-xs text-secondary text-center">🔒 Your credentials are encrypted and secure</p>
         </div>
       </div>
     </div>

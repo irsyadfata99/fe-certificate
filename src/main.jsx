@@ -37,24 +37,51 @@ createRoot(document.getElementById("root")).render(
           reverseOrder={false}
           toastOptions={{
             duration: 4000,
+            // Dark mode support - menggunakan CSS variables
+            className: "",
             style: {
-              background: "#fff",
-              color: "#363636",
+              background: "var(--toast-bg, #ffffff)",
+              color: "var(--toast-text, #1f2937)",
               fontSize: "14px",
               padding: "12px 16px",
+              borderRadius: "12px",
+              border: "1px solid var(--toast-border, #e5e7eb)",
+              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
             },
             success: {
               duration: 3000,
               iconTheme: {
                 primary: "#10b981",
-                secondary: "#fff",
+                secondary: "#ffffff",
+              },
+              style: {
+                background: "var(--toast-success-bg, #ecfdf5)",
+                color: "var(--toast-success-text, #065f46)",
+                border: "1px solid var(--toast-success-border, #a7f3d0)",
               },
             },
             error: {
-              duration: 4000,
+              duration: 5000,
               iconTheme: {
                 primary: "#ef4444",
-                secondary: "#fff",
+                secondary: "#ffffff",
+              },
+              style: {
+                background: "var(--toast-error-bg, #fef2f2)",
+                color: "var(--toast-error-text, #991b1b)",
+                border: "1px solid var(--toast-error-border, #fca5a5)",
+              },
+            },
+            loading: {
+              duration: Infinity,
+              iconTheme: {
+                primary: "#3b82f6",
+                secondary: "#ffffff",
+              },
+              style: {
+                background: "var(--toast-loading-bg, #eff6ff)",
+                color: "var(--toast-loading-text, #1e40af)",
+                border: "1px solid var(--toast-loading-border, #bfdbfe)",
               },
             },
           }}
