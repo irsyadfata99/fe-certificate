@@ -7,6 +7,10 @@ import { handleOperationSuccess } from "../utils/successHandler";
  * Teacher API Service
  * Handles teacher management (Admin only)
  * Supports multi-branch and multi-division assignments
+ *
+ * IMPORTANT: Backend expects:
+ * - branch_ids: array of INTEGER branch IDs (not codes!)
+ * - divisions: array of division codes ["JK", "LK"]
  */
 
 /**
@@ -42,17 +46,59 @@ export const getTeacherById = async (teacherId) => {
 };
 
 /**
+ * Helper: Convert branch codes to branch IDs
+ * @param {Array} branchCodes - Array of branch codes ["SND", "MKW"]
+ * @param {Array} branchOptions - Branch options from useBranchOptions hook
+ * @returns {Array} Array of branch IDs [1, 2]
+ */
+const convertBranchCodesToIds = (branchCodes, branchOptions) => {
+  if (!branchCodes || !Array.isArray(branchCodes)) {
+    return [];
+  }
+
+  return branchCodes
+    .map((code) => {
+      const branch = branchOptions.find((opt) => opt.value === code);
+      return branch ? branch.id : null;
+    })
+    .filter((id) => id !== null);
+};
+
+/**
  * Create new teacher
  * @param {Object} data - Teacher data
  * @param {string} data.username - Unique username
  * @param {string} data.teacher_name - Full name
- * @param {string[]} data.branches - Array of branch codes (e.g., ["SND", "MKW"])
- * @param {string[]} data.divisions - Array of divisions (e.g., ["JK", "LK"])
+ * @param {string[]} data.branchCodes - Array of branch CODES (frontend format)
+ * @param {string[]} data.divisions - Array of division codes
+ * @param {Array} data.branchOptions - Branch options with IDs (from useBranchOptions)
  * @returns {Promise} Created teacher with generated password
  */
 export const createTeacher = async (data) => {
   try {
-    const response = await axiosInstance.post(ENDPOINTS.TEACHERS, data);
+    // CRITICAL: Convert branch codes to IDs
+    const branchIds = convertBranchCodesToIds(
+      data.branchCodes,
+      data.branchOptions,
+    );
+
+    if (branchIds.length === 0) {
+      throw new Error("Invalid branch selection - no valid branch IDs found");
+    }
+
+    // Backend payload
+    const payload = {
+      username: data.username,
+      teacher_name: data.teacher_name,
+      branch_ids: branchIds, // Array of INTEGER IDs [1, 2, 3]
+      divisions: data.divisions, // Array of codes ["JK", "LK"]
+    };
+
+    console.log("📤 CREATE Teacher Payload:", payload);
+    console.log("   Branch Codes →", data.branchCodes);
+    console.log("   Branch IDs →", branchIds);
+
+    const response = await axiosInstance.post(ENDPOINTS.TEACHERS, payload);
 
     if (response.data.success) {
       handleOperationSuccess("create", response.data.data);
@@ -61,6 +107,7 @@ export const createTeacher = async (data) => {
 
     throw new Error(response.data.message || "Create failed");
   } catch (error) {
+    console.error("❌ Create Teacher Error:", error.response?.data || error);
     handleApiError(error);
     throw error;
   }
@@ -72,16 +119,44 @@ export const createTeacher = async (data) => {
  * @param {Object} data - Updated teacher data
  * @param {string} data.username - Username
  * @param {string} data.teacher_name - Full name
- * @param {string[]} data.branches - Array of branch codes
- * @param {string[]} data.divisions - Array of divisions
+ * @param {string[]} data.branchCodes - Array of branch CODES (frontend format)
+ * @param {string[]} data.divisions - Array of division codes
+ * @param {Array} data.branchOptions - Branch options with IDs
  * @param {string} [data.new_password] - Optional new password
  * @returns {Promise} Updated teacher
  */
 export const updateTeacher = async (teacherId, data) => {
   try {
+    // CRITICAL: Convert branch codes to IDs
+    const branchIds = convertBranchCodesToIds(
+      data.branchCodes,
+      data.branchOptions,
+    );
+
+    if (branchIds.length === 0) {
+      throw new Error("Invalid branch selection - no valid branch IDs found");
+    }
+
+    // Backend payload
+    const payload = {
+      username: data.username,
+      teacher_name: data.teacher_name,
+      branch_ids: branchIds, // Array of INTEGER IDs [1, 2, 3]
+      divisions: data.divisions, // Array of codes ["JK", "LK"]
+    };
+
+    // Only include new_password if provided
+    if (data.new_password && data.new_password.trim()) {
+      payload.new_password = data.new_password;
+    }
+
+    console.log("📤 UPDATE Teacher Payload:", payload);
+    console.log("   Branch Codes →", data.branchCodes);
+    console.log("   Branch IDs →", branchIds);
+
     const response = await axiosInstance.put(
       ENDPOINTS.TEACHER_BY_ID(teacherId),
-      data,
+      payload,
     );
 
     if (response.data.success) {
@@ -91,6 +166,7 @@ export const updateTeacher = async (teacherId, data) => {
 
     throw new Error(response.data.message || "Update failed");
   } catch (error) {
+    console.error("❌ Update Teacher Error:", error.response?.data || error);
     handleApiError(error);
     throw error;
   }

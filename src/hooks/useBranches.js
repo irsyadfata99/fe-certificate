@@ -47,16 +47,17 @@ export const useBranches = () => {
 
 /**
  * Custom hook for branch options (for select/dropdown)
- * Transforms branch data into { value, label } format
+ * Transforms branch data into { value, label, id } format
+ * CRITICAL: Includes 'id' field for backend conversion
  * @returns {Object} { branchOptions, loading, error }
  */
 export const useBranchOptions = () => {
   const { branches, loading, error, refetch } = useBranches();
 
   const branchOptions = branches.map((branch) => ({
-    value: branch.branch_code,
-    label: branch.branch_name,
-    id: branch.id,
+    value: branch.branch_code, // Used for react-select value
+    label: branch.branch_name, // Used for display
+    id: branch.id, // ✅ CRITICAL: Used for API payload conversion
     isActive: branch.is_active,
   }));
 
@@ -78,6 +79,23 @@ export const useBranchByCode = (branchCode) => {
   const { branches, loading, error } = useBranches();
 
   const branch = branches.find((b) => b.branch_code === branchCode) || null;
+
+  return {
+    branch,
+    loading,
+    error,
+  };
+};
+
+/**
+ * Custom hook to get branch details by ID
+ * @param {number} branchId - Branch ID to find
+ * @returns {Object} { branch, loading, error }
+ */
+export const useBranchById = (branchId) => {
+  const { branches, loading, error } = useBranches();
+
+  const branch = branches.find((b) => b.id === branchId) || null;
 
   return {
     branch,
