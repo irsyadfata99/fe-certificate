@@ -18,3 +18,6 @@ export {
 } from "./useDebounce";
 export { useConfirm, default as useConfirmDefault } from "./useConfirm";
 export { useLocalStorage, useSessionStorage } from "./useLocalStorage";
+export { useTeachers, default as useTeachersDefault } from "./useTeachers";
+export { useModules, default as useModulesDefault } from "./useModules";
+export { useStudents, default as useStudentsDefault } from "./useStudents";

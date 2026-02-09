@@ -4,11 +4,6 @@ import { handleApiError } from "../utils/errorHandler";
 import { handleOperationSuccess } from "../utils/successHandler";
 
 /**
- * Printed Certificate API Service
- * Handles printed certificate records
- */
-
-/**
  * Get modules for dropdown (teacher use)
  * @returns {Promise} Modules list
  */
@@ -69,6 +64,35 @@ export const getPrintRecordById = async (recordId) => {
   try {
     const response = await axiosInstance.get(
       `${ENDPOINTS.PRINTED_CERTS}/${recordId}`,
+    );
+    return response.data;
+  } catch (error) {
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
+ * Search students for autocomplete in print form
+ * @param {string} query - Search query
+ * @param {string} branchCode - Branch code filter
+ * @param {number} limit - Result limit
+ * @returns {Promise} Students list
+ */
+export const searchStudentsForPrint = async (
+  query,
+  branchCode = null,
+  limit = 10,
+) => {
+  try {
+    const params = { q: query, limit };
+    if (branchCode) {
+      params.branch_code = branchCode;
+    }
+
+    const response = await axiosInstance.get(
+      "/printed-certificates/search-students",
+      { params },
     );
     return response.data;
   } catch (error) {
