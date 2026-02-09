@@ -6,6 +6,7 @@ import { handleOperationSuccess } from "../utils/successHandler";
 /**
  * Teacher API Service
  * Handles teacher management (Admin only)
+ * Supports multi-branch and multi-division assignments
  */
 
 /**
@@ -26,7 +27,7 @@ export const getTeachers = async (params = {}) => {
 /**
  * Get teacher by ID
  * @param {number} teacherId
- * @returns {Promise} Teacher data
+ * @returns {Promise} Teacher data with branches and divisions arrays
  */
 export const getTeacherById = async (teacherId) => {
   try {
@@ -43,6 +44,10 @@ export const getTeacherById = async (teacherId) => {
 /**
  * Create new teacher
  * @param {Object} data - Teacher data
+ * @param {string} data.username - Unique username
+ * @param {string} data.teacher_name - Full name
+ * @param {string[]} data.branches - Array of branch codes (e.g., ["SND", "MKW"])
+ * @param {string[]} data.divisions - Array of divisions (e.g., ["JK", "LK"])
  * @returns {Promise} Created teacher with generated password
  */
 export const createTeacher = async (data) => {
@@ -65,6 +70,11 @@ export const createTeacher = async (data) => {
  * Update teacher
  * @param {number} teacherId
  * @param {Object} data - Updated teacher data
+ * @param {string} data.username - Username
+ * @param {string} data.teacher_name - Full name
+ * @param {string[]} data.branches - Array of branch codes
+ * @param {string[]} data.divisions - Array of divisions
+ * @param {string} [data.new_password] - Optional new password
  * @returns {Promise} Updated teacher
  */
 export const updateTeacher = async (teacherId, data) => {

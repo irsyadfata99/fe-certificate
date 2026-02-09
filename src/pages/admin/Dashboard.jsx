@@ -1,6 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileText, Users, BookOpen, TrendingUp, ArrowRight, AlertCircle, Package, Award, RefreshCw } from "lucide-react";
+import {
+  FileText,
+  Users,
+  BookOpen,
+  TrendingUp,
+  ArrowRight,
+  AlertCircle,
+  Package,
+  Award,
+  RefreshCw,
+} from "lucide-react";
 import { useAuth } from "@hooks/useAuth";
 import Button from "@components/common/Button";
 import Spinner from "@components/common/Spinner";
@@ -33,22 +43,31 @@ const Dashboard = () => {
 
       try {
         // Fetch all data
-        const [certificatesRes, teachersRes, modulesRes, stockRes, logsRes] = await Promise.allSettled([
-          getCertificates({ limit: 1 }),
-          getTeachers({ limit: 1 }),
-          getModules({ limit: 1 }),
-          getStockSummary(),
-          getLogs({ limit: 5, offset: 0 }), // Get 5 most recent logs
-        ]);
+        const [certificatesRes, teachersRes, modulesRes, stockRes, logsRes] =
+          await Promise.allSettled([
+            getCertificates({ limit: 1 }),
+            getTeachers({ limit: 1 }),
+            getModules({ limit: 1 }),
+            getStockSummary(),
+            getLogs({ limit: 5, offset: 0 }), // Get 5 most recent logs
+          ]);
 
         // Check for failures
-        const failures = [certificatesRes, teachersRes, modulesRes, stockRes, logsRes].filter((res) => res.status === "rejected");
+        const failures = [
+          certificatesRes,
+          teachersRes,
+          modulesRes,
+          stockRes,
+          logsRes,
+        ].filter((res) => res.status === "rejected");
 
         if (failures.length > 0) {
           console.warn("Some dashboard data failed to load:", failures);
         }
 
-        // Process stock summary
+        // =====================================================
+        // FIXED: Process stock summary with correct structure
+        // =====================================================
         let processedStock = null;
         let totalCertificates = 0;
         let totalMedals = 0;
@@ -56,26 +75,32 @@ const Dashboard = () => {
         if (stockRes.status === "fulfilled" && stockRes.value?.data) {
           const stockData = stockRes.value.data;
 
-          if (stockData.total_stock) {
-            processedStock = {
-              SND: {
-                certificates: stockData.total_stock.snd?.certificates || 0,
-                medals: stockData.total_stock.snd?.medals || 0,
-              },
-              MKW: {
-                certificates: stockData.total_stock.mkw?.certificates || 0,
-                medals: stockData.total_stock.mkw?.medals || 0,
-              },
-              KBP: {
-                certificates: stockData.total_stock.kbp?.certificates || 0,
-                medals: stockData.total_stock.kbp?.medals || 0,
-              },
-            };
+          // Backend returns: { stock_by_branch: { 'SND': {...}, 'MKW': {...}, 'KBP': {...} }, grand_total: {...} }
+          if (stockData.stock_by_branch) {
+            processedStock = {};
 
-            // Calculate totals
-            totalCertificates = processedStock.SND.certificates + processedStock.MKW.certificates + processedStock.KBP.certificates;
+            // Process each branch from stock_by_branch
+            Object.entries(stockData.stock_by_branch).forEach(
+              ([branchCode, branchData]) => {
+                processedStock[branchCode] = {
+                  certificates: branchData.certificates || 0,
+                  medals: branchData.medals || 0,
+                  branch_name: branchData.branch_name || branchCode,
+                };
+              },
+            );
 
-            totalMedals = processedStock.SND.medals + processedStock.MKW.medals + processedStock.KBP.medals;
+            // Use grand_total if available, otherwise calculate
+            if (stockData.grand_total) {
+              totalCertificates = stockData.grand_total.certificates || 0;
+              totalMedals = stockData.grand_total.medals || 0;
+            } else {
+              // Fallback: calculate from stock_by_branch
+              Object.values(processedStock).forEach((branch) => {
+                totalCertificates += branch.certificates;
+                totalMedals += branch.medals;
+              });
+            }
           }
         }
 
@@ -90,10 +115,11 @@ const Dashboard = () => {
         if (teachersRes.status === "fulfilled") {
           const teachersData = teachersRes.value;
           // Try different possible response structures
-          totalTeachers = teachersData?.pagination?.total || teachersData?.meta?.pagination?.total || teachersData?.total || 0;
-
-          console.log("Teachers response:", teachersData);
-          console.log("Total teachers:", totalTeachers);
+          totalTeachers =
+            teachersData?.pagination?.total ||
+            teachersData?.meta?.pagination?.total ||
+            teachersData?.total ||
+            0;
         }
 
         // Extract modules total
@@ -101,10 +127,11 @@ const Dashboard = () => {
         if (modulesRes.status === "fulfilled") {
           const modulesData = modulesRes.value;
           // Try different possible response structures
-          totalModules = modulesData?.pagination?.total || modulesData?.meta?.pagination?.total || modulesData?.total || 0;
-
-          console.log("Modules response:", modulesData);
-          console.log("Total modules:", totalModules);
+          totalModules =
+            modulesData?.pagination?.total ||
+            modulesData?.meta?.pagination?.total ||
+            modulesData?.total ||
+            0;
         }
 
         setStats({
@@ -189,7 +216,10 @@ const Dashboard = () => {
 
   // Helper function to format activity description
   const getActivityDescription = (log) => {
-    const certText = log.certificate_amount > 0 ? `${log.certificate_amount} certificates` : "";
+    const certText =
+      log.certificate_amount > 0
+        ? `${log.certificate_amount} certificates`
+        : "";
     const medalText = log.medal_amount > 0 ? `${log.medal_amount} medals` : "";
 
     const amounts = [certText, medalText].filter(Boolean).join(" and ");
@@ -199,7 +229,19 @@ const Dashboard = () => {
     }
 
     if (log.action_type === "CREATE") {
-      const branch = log.new_values?.jumlah_sertifikat_snd ? "SND" : log.new_values?.jumlah_sertifikat_mkw ? "MKW" : log.new_values?.jumlah_sertifikat_kbp ? "KBP" : "";
+      // Parse new_values to get branch info
+      let branch = "";
+      if (log.new_values) {
+        try {
+          const values =
+            typeof log.new_values === "string"
+              ? JSON.parse(log.new_values)
+              : log.new_values;
+          branch = values.branch || "";
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
       return `${amounts} added${branch ? ` to ${branch}` : ""}`;
     }
 
@@ -229,9 +271,15 @@ const Dashboard = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-status-error/10 rounded-full mb-4">
             <AlertCircle className="w-8 h-8 text-status-error" />
           </div>
-          <h3 className="text-lg font-semibold text-primary mb-2">Failed to Load Dashboard</h3>
+          <h3 className="text-lg font-semibold text-primary mb-2">
+            Failed to Load Dashboard
+          </h3>
           <p className="text-secondary mb-4">{error}</p>
-          <Button variant="primary" onClick={() => window.location.reload()} size="medium">
+          <Button
+            variant="primary"
+            onClick={() => window.location.reload()}
+            size="medium"
+          >
             Retry
           </Button>
         </div>
@@ -247,8 +295,12 @@ const Dashboard = () => {
     <div className="space-y-4">
       {/* Header - Glassmorphism */}
       <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg">
-        <h1 className="text-2xl font-bold text-primary">Welcome back, {getUserDisplayName()}! 👋</h1>
-        <p className="text-secondary mt-1">Here's what's happening with your system today.</p>
+        <h1 className="text-2xl font-bold text-primary">
+          Welcome back, {getUserDisplayName()}! 👋
+        </h1>
+        <p className="text-secondary mt-1">
+          Here's what's happening with your system today.
+        </p>
       </div>
 
       {/* Stats Grid - Glassmorphism */}
@@ -262,11 +314,19 @@ const Dashboard = () => {
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-secondary mb-1">{stat.title}</p>
-                  <p className="text-3xl font-bold text-primary group-hover:scale-105 transition-transform">{stat.value}</p>
-                  <p className="text-xs text-secondary mt-1">{stat.description}</p>
+                  <p className="text-sm font-medium text-secondary mb-1">
+                    {stat.title}
+                  </p>
+                  <p className="text-3xl font-bold text-primary group-hover:scale-105 transition-transform">
+                    {stat.value}
+                  </p>
+                  <p className="text-xs text-secondary mt-1">
+                    {stat.description}
+                  </p>
                 </div>
-                <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg`}>
+                <div
+                  className={`p-3 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg`}
+                >
                   <Icon className="w-6 h-6 text-white" />
                 </div>
               </div>
@@ -278,12 +338,19 @@ const Dashboard = () => {
       {/* Stock Summary - Glassmorphism */}
       {stats.stockSummary && Object.keys(stats.stockSummary).length > 0 && (
         <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg">
-          <h2 className="text-lg font-semibold text-primary mb-4">Stock Summary by Branch</h2>
+          <h2 className="text-lg font-semibold text-primary mb-4">
+            Stock Summary by Branch
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {Object.entries(stats.stockSummary).map(([branch, stock]) => (
-              <div key={branch} className="backdrop-blur-sm bg-white/20 dark:bg-white/5 p-4 rounded-xl border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all">
+              <div
+                key={branch}
+                className="backdrop-blur-sm bg-white/20 dark:bg-white/5 p-4 rounded-xl border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all"
+              >
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-base font-semibold text-primary">{branch}</h3>
+                  <h3 className="text-base font-semibold text-primary">
+                    {stock.branch_name || branch}
+                  </h3>
                   <div className="flex items-center gap-2">
                     <FileText className="w-4 h-4 text-blue-500" />
                     <Award className="w-4 h-4 text-yellow-500" />
@@ -293,16 +360,22 @@ const Dashboard = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <FileText className="w-3 h-3 text-blue-500" />
-                      <span className="text-sm text-secondary">Certificates</span>
+                      <span className="text-sm text-secondary">
+                        Certificates
+                      </span>
                     </div>
-                    <span className="text-lg font-bold text-primary">{formatNumber(stock.certificates)}</span>
+                    <span className="text-lg font-bold text-primary">
+                      {formatNumber(stock.certificates)}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Award className="w-3 h-3 text-yellow-500" />
                       <span className="text-sm text-secondary">Medals</span>
                     </div>
-                    <span className="text-lg font-bold text-primary">{formatNumber(stock.medals)}</span>
+                    <span className="text-lg font-bold text-primary">
+                      {formatNumber(stock.medals)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -313,7 +386,9 @@ const Dashboard = () => {
 
       {/* Recent Activity - Glassmorphism */}
       <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg">
-        <h2 className="text-lg font-semibold text-primary mb-4">Recent Activity</h2>
+        <h2 className="text-lg font-semibold text-primary mb-4">
+          Recent Activity
+        </h2>
 
         {recentLogs.length === 0 ? (
           <div className="text-center py-8">
@@ -322,21 +397,44 @@ const Dashboard = () => {
         ) : (
           <div className="space-y-3">
             {recentLogs.map((log) => (
-              <div key={log.id} className="backdrop-blur-sm bg-white/20 dark:bg-white/5 rounded-xl p-4 border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all flex items-start gap-3">
-                <div className={`p-2 rounded-lg bg-gradient-to-br ${getActivityGradient(log.action_type)} shadow-md flex-shrink-0`}>{getActivityIcon(log.action_type)}</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-primary">{log.certificate_id}</p>
-                  <p className="text-sm text-secondary mt-0.5">{getActivityDescription(log)}</p>
-                  {log.performed_by && <p className="text-xs text-secondary mt-1">by {log.performed_by}</p>}
+              <div
+                key={log.id}
+                className="backdrop-blur-sm bg-white/20 dark:bg-white/5 rounded-xl p-4 border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all flex items-start gap-3"
+              >
+                <div
+                  className={`p-2 rounded-lg bg-gradient-to-br ${getActivityGradient(log.action_type)} shadow-md flex-shrink-0`}
+                >
+                  {getActivityIcon(log.action_type)}
                 </div>
-                <p className="text-sm text-secondary whitespace-nowrap">{formatDate(log.created_at, DATE_FORMATS.DISPLAY)}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-primary">
+                    {log.certificate_id}
+                  </p>
+                  <p className="text-sm text-secondary mt-0.5">
+                    {getActivityDescription(log)}
+                  </p>
+                  {log.performed_by && (
+                    <p className="text-xs text-secondary mt-1">
+                      by {log.performed_by}
+                    </p>
+                  )}
+                </div>
+                <p className="text-sm text-secondary whitespace-nowrap">
+                  {formatDate(log.created_at, DATE_FORMATS.DISPLAY)}
+                </p>
               </div>
             ))}
           </div>
         )}
 
         <div className="mt-4 pt-4 border-t border-gray-200/30 dark:border-white/5">
-          <Button variant="ghost" size="small" onClick={() => navigate("/admin/logs")} icon={<ArrowRight className="w-4 h-4" />} iconPosition="right">
+          <Button
+            variant="ghost"
+            size="small"
+            onClick={() => navigate("/admin/logs")}
+            icon={<ArrowRight className="w-4 h-4" />}
+            iconPosition="right"
+          >
             View All Activity
           </Button>
         </div>

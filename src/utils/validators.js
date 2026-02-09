@@ -146,11 +146,12 @@ export const validateUsername = (username) => {
     };
   }
 
-  const validPattern = /^[A-Za-z0-9_]+$/;
+  const validPattern = /^[a-z0-9_]+$/;
   if (!validPattern.test(cleanUsername)) {
     return {
       valid: false,
-      message: "Username can only contain letters, numbers, and underscores",
+      message:
+        "Username can only contain lowercase letters, numbers, and underscores",
     };
   }
 
@@ -183,6 +184,197 @@ export const validateTeacherName = (name) => {
 
   return { valid: true, message: "" };
 };
+
+// =====================================================
+// NEW: ARRAY VALIDATORS FOR MULTI-BRANCH/DIVISION
+// =====================================================
+
+/**
+ * Validate branches array
+ * @param {Array} branches - Array of branch codes ["SND", "MKW"]
+ * @param {Object} options - Validation options
+ * @returns {Object} Validation result
+ */
+export const validateBranchesArray = (branches, options = {}) => {
+  const {
+    required = true,
+    minCount = 1,
+    maxCount = 10,
+    validBranches = null,
+  } = options;
+
+  // Check if required
+  if (
+    required &&
+    (!branches || !Array.isArray(branches) || branches.length === 0)
+  ) {
+    return {
+      valid: false,
+      message: "At least one branch must be selected",
+    };
+  }
+
+  // If not required and empty, that's OK
+  if (!required && (!branches || branches.length === 0)) {
+    return { valid: true, message: "" };
+  }
+
+  // Check minimum count
+  if (branches.length < minCount) {
+    return {
+      valid: false,
+      message: `At least ${minCount} branch${minCount !== 1 ? "es" : ""} must be selected`,
+    };
+  }
+
+  // Check maximum count
+  if (branches.length > maxCount) {
+    return {
+      valid: false,
+      message: `Maximum ${maxCount} branch${maxCount !== 1 ? "es" : ""} allowed`,
+    };
+  }
+
+  // Validate each branch code
+  if (validBranches) {
+    const invalidBranches = branches.filter((b) => !validBranches.includes(b));
+    if (invalidBranches.length > 0) {
+      return {
+        valid: false,
+        message: `Invalid branch codes: ${invalidBranches.join(", ")}`,
+      };
+    }
+  }
+
+  // Check for duplicates
+  const uniqueBranches = new Set(branches);
+  if (uniqueBranches.size !== branches.length) {
+    return {
+      valid: false,
+      message: "Duplicate branches are not allowed",
+    };
+  }
+
+  return { valid: true, message: "" };
+};
+
+/**
+ * Validate divisions array
+ * @param {Array} divisions - Array of division codes ["JK", "LK"]
+ * @param {Object} options - Validation options
+ * @returns {Object} Validation result
+ */
+export const validateDivisionsArray = (divisions, options = {}) => {
+  const {
+    required = true,
+    minCount = 1,
+    maxCount = 2,
+    validDivisions = ["JK", "LK"],
+  } = options;
+
+  // Check if required
+  if (
+    required &&
+    (!divisions || !Array.isArray(divisions) || divisions.length === 0)
+  ) {
+    return {
+      valid: false,
+      message: "At least one division must be selected",
+    };
+  }
+
+  // If not required and empty, that's OK
+  if (!required && (!divisions || divisions.length === 0)) {
+    return { valid: true, message: "" };
+  }
+
+  // Check minimum count
+  if (divisions.length < minCount) {
+    return {
+      valid: false,
+      message: `At least ${minCount} division${minCount !== 1 ? "s" : ""} must be selected`,
+    };
+  }
+
+  // Check maximum count
+  if (divisions.length > maxCount) {
+    return {
+      valid: false,
+      message: `Maximum ${maxCount} division${maxCount !== 1 ? "s" : ""} allowed`,
+    };
+  }
+
+  // Validate each division code
+  const invalidDivisions = divisions.filter((d) => !validDivisions.includes(d));
+  if (invalidDivisions.length > 0) {
+    return {
+      valid: false,
+      message: `Invalid division codes: ${invalidDivisions.join(", ")}`,
+    };
+  }
+
+  // Check for duplicates
+  const uniqueDivisions = new Set(divisions);
+  if (uniqueDivisions.size !== divisions.length) {
+    return {
+      valid: false,
+      message: "Duplicate divisions are not allowed",
+    };
+  }
+
+  return { valid: true, message: "" };
+};
+
+/**
+ * Validate teacher form data (complete)
+ * @param {Object} data - Teacher form data
+ * @param {boolean} isEdit - Whether this is an edit operation
+ * @returns {Object} Validation result with all errors
+ */
+export const validateTeacherForm = (data, isEdit = false) => {
+  const errors = {};
+
+  // Username
+  const usernameValidation = validateUsername(data.username);
+  if (!usernameValidation.valid) {
+    errors.username = usernameValidation.message;
+  }
+
+  // Teacher name
+  const nameValidation = validateTeacherName(data.teacher_name);
+  if (!nameValidation.valid) {
+    errors.teacher_name = nameValidation.message;
+  }
+
+  // Branches array
+  const branchesValidation = validateBranchesArray(data.branches);
+  if (!branchesValidation.valid) {
+    errors.branches = branchesValidation.message;
+  }
+
+  // Divisions array
+  const divisionsValidation = validateDivisionsArray(data.divisions);
+  if (!divisionsValidation.valid) {
+    errors.divisions = divisionsValidation.message;
+  }
+
+  // Password (only for edit if provided)
+  if (isEdit && data.new_password && data.new_password.trim()) {
+    const passwordValidation = validatePassword(data.new_password);
+    if (!passwordValidation.valid) {
+      errors.new_password = passwordValidation.message;
+    }
+  }
+
+  const isValid = Object.keys(errors).length === 0;
+
+  return {
+    isValid,
+    errors,
+  };
+};
+
+// ... keep existing validators below ...
 
 /**
  * Validate module code
@@ -283,7 +475,7 @@ export const validateAgeRange = (minAge, maxAge) => {
 };
 
 /**
- * Validate division
+ * Validate division (single)
  */
 export const validateDivision = (division) => {
   const validDivisions = ["JK", "LK"];
@@ -305,7 +497,7 @@ export const validateDivision = (division) => {
 };
 
 /**
- * Validate branch
+ * Validate branch (single)
  */
 export const validateBranch = (branch) => {
   const validBranches = ["SND", "MKW", "KBP"];
