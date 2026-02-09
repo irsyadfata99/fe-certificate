@@ -54,12 +54,10 @@ export const BRANCH_LABELS = {
   [BRANCHES.KBP]: "Kopo Permai",
 };
 
-export const BRANCH_OPTIONS = Object.entries(BRANCH_LABELS).map(
-  ([value, label]) => ({
-    value,
-    label,
-  }),
-);
+export const BRANCH_OPTIONS = Object.entries(BRANCH_LABELS).map(([value, label]) => ({
+  value,
+  label,
+}));
 
 // =====================================================
 // DIVISIONS
@@ -75,12 +73,10 @@ export const DIVISION_LABELS = {
   [DIVISIONS.LK]: "Lanjutan Kids",
 };
 
-export const DIVISION_OPTIONS = Object.entries(DIVISION_LABELS).map(
-  ([value, label]) => ({
-    value,
-    label,
-  }),
-);
+export const DIVISION_OPTIONS = Object.entries(DIVISION_LABELS).map(([value, label]) => ({
+  value,
+  label,
+}));
 
 // =====================================================
 // PAGINATION
@@ -150,6 +146,18 @@ export const ENDPOINTS = {
   MODULE_BY_ID: (id) => `/modules/${id}`,
   MODULE_STATS: "/modules/stats",
 
+  // ========== STUDENTS ==========
+  STUDENTS: "/students",
+  STUDENT_BY_ID: (id) => `/students/${id}`,
+  STUDENTS_SEARCH: "/students/search",
+  STUDENTS_STATS: "/students/stats",
+  STUDENT_TRANSFER: (id) => `/students/${id}/transfer`,
+  STUDENT_MODULES: (id) => `/students/${id}/modules`,
+
+  // ========== BRANCHES ==========
+  BRANCHES: "/branches",
+  BRANCHES_STATS: "/branches/stats",
+
   // ========== PRINTED CERTIFICATES ==========
   PRINTED_CERTS: "/printed-certificates",
   PRINTED_CERT_MODULES: "/printed-certificates/modules",
@@ -166,6 +174,7 @@ export const ENDPOINTS = {
   EXPORT_TEACHERS: "/export/teachers",
   EXPORT_MODULES: "/export/modules",
   EXPORT_PRINTED: "/export/printed-certificates",
+  EXPORT_STUDENTS: "/export/students",
 };
 
 // =====================================================
@@ -236,6 +245,12 @@ export const VALIDATION = {
     MAX_LENGTH: 100,
   },
 
+  // Student name
+  STUDENT_NAME: {
+    MIN_LENGTH: 3,
+    MAX_LENGTH: 100,
+  },
+
   // Module code & name
   MODULE_CODE: {
     MIN_LENGTH: 3,
@@ -285,6 +300,7 @@ export const ROUTES = {
   ADMIN_CERTIFICATES: "/admin/certificates",
   ADMIN_TEACHERS: "/admin/teachers",
   ADMIN_MODULES: "/admin/modules",
+  ADMIN_STUDENTS: "/admin/students",
   ADMIN_LOGS: "/admin/logs",
 
   // Teacher
@@ -314,15 +330,8 @@ export const FILE_UPLOAD = {
   MAX_SIZE_MB: ENV.MAX_FILE_SIZE / 1024 / 1024, // MB
   ALLOWED_TYPES: {
     IMAGE: ["image/jpeg", "image/jpg", "image/png", "image/webp"],
-    DOCUMENT: [
-      "application/pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ],
-    EXCEL: [
-      "application/vnd.ms-excel",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    ],
+    DOCUMENT: ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+    EXCEL: ["application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
   },
 };
 
@@ -333,6 +342,24 @@ export const FILE_UPLOAD = {
 export const THEME = {
   LIGHT: "light",
   DARK: "dark",
+};
+
+// =====================================================
+// STUDENT STATUS
+// =====================================================
+
+export const STUDENT_STATUS = {
+  ACTIVE: "active",
+  INACTIVE: "inactive",
+  GRADUATED: "graduated",
+  TRANSFERRED: "transferred",
+};
+
+export const STUDENT_STATUS_LABELS = {
+  [STUDENT_STATUS.ACTIVE]: "Active",
+  [STUDENT_STATUS.INACTIVE]: "Inactive",
+  [STUDENT_STATUS.GRADUATED]: "Graduated",
+  [STUDENT_STATUS.TRANSFERRED]: "Transferred",
 };
 
 // =====================================================
@@ -370,6 +397,8 @@ export default {
   TOAST_CONFIG,
   FILE_UPLOAD,
   THEME,
+  STUDENT_STATUS,
+  STUDENT_STATUS_LABELS,
   DEBOUNCE_DELAY,
   THROTTLE_DELAY,
   SESSION_CHECK_INTERVAL,

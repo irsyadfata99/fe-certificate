@@ -15,6 +15,12 @@ export * from "./teacherApi";
 // Module
 export * from "./moduleApi";
 
+// Students
+export * from "./studentsApi";
+
+// Branches
+export * from "./branchesApi";
+
 // Printed Certificate
 export * from "./printedCertApi";
 
