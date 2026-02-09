@@ -8,6 +8,7 @@ import {
   History,
   Printer,
   Activity,
+  MapPin,
 } from "lucide-react";
 import { useAuth } from "@hooks/useAuth";
 
@@ -28,6 +29,11 @@ const Sidebar = ({ isOpen, onClose }) => {
       path: "/admin/dashboard",
       icon: LayoutDashboard,
       label: "Dashboard",
+    },
+    {
+      path: "/admin/branches",
+      icon: MapPin,
+      label: "Branches",
     },
     {
       path: "/admin/certificates",

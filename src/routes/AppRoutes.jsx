@@ -10,6 +10,7 @@ const Profile = lazy(() => import("../pages/auth/Profile"));
 
 // Admin pages
 const AdminDashboard = lazy(() => import("../pages/admin/Dashboard"));
+const Branches = lazy(() => import("../pages/admin/Branches")); // ← TAMBAHKAN INI
 const Certificates = lazy(() => import("../pages/admin/Certificates"));
 const Teachers = lazy(() => import("../pages/admin/Teachers"));
 const Modules = lazy(() => import("../pages/admin/Modules"));
@@ -46,6 +47,7 @@ const AppRoutes = () => {
         {/* Admin Routes */}
         <Route element={<AdminRoute />}>
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/branches" element={<Branches />} />
           <Route path="/admin/certificates" element={<Certificates />} />
           <Route path="/admin/teachers" element={<Teachers />} />
           <Route path="/admin/modules" element={<Modules />} />

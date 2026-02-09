@@ -57,10 +57,12 @@ export const BRANCH_LABELS = {
 };
 
 // Note: Use useBranchOptions() hook for dynamic branch options
-export const BRANCH_OPTIONS = Object.entries(BRANCH_LABELS).map(([value, label]) => ({
-  value,
-  label,
-}));
+export const BRANCH_OPTIONS = Object.entries(BRANCH_LABELS).map(
+  ([value, label]) => ({
+    value,
+    label,
+  }),
+);
 
 // =====================================================
 // DIVISIONS
@@ -76,10 +78,12 @@ export const DIVISION_LABELS = {
   [DIVISIONS.LK]: "Lanjutan Kids",
 };
 
-export const DIVISION_OPTIONS = Object.entries(DIVISION_LABELS).map(([value, label]) => ({
-  value,
-  label,
-}));
+export const DIVISION_OPTIONS = Object.entries(DIVISION_LABELS).map(
+  ([value, label]) => ({
+    value,
+    label,
+  }),
+);
 
 // =====================================================
 // PAGINATION
@@ -301,6 +305,7 @@ export const ROUTES = {
 
   // Admin
   ADMIN_DASHBOARD: "/admin/dashboard",
+  ADMIN_BRANCHES: "/admin/branches",
   ADMIN_CERTIFICATES: "/admin/certificates",
   ADMIN_TEACHERS: "/admin/teachers",
   ADMIN_MODULES: "/admin/modules",
@@ -334,8 +339,15 @@ export const FILE_UPLOAD = {
   MAX_SIZE_MB: ENV.MAX_FILE_SIZE / 1024 / 1024, // MB
   ALLOWED_TYPES: {
     IMAGE: ["image/jpeg", "image/jpg", "image/png", "image/webp"],
-    DOCUMENT: ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
-    EXCEL: ["application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+    DOCUMENT: [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ],
+    EXCEL: [
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ],
   },
 };
 
