@@ -109,7 +109,7 @@ const Logs = () => {
   };
 
   // =====================================================
-  // DATA FETCHING - IMPROVED WITH BETTER DEBUGGING
+  // DATA FETCHING
   // =====================================================
 
   const fetchLogs = useCallback(async () => {
@@ -124,17 +124,14 @@ const Logs = () => {
         offset,
       };
 
-      // Add search param if exists
       if (debouncedSearch.trim()) {
         params.search = debouncedSearch.trim();
       }
 
-      // Add action type filter if selected
       if (filterActionType) {
         params.action_type = filterActionType;
       }
 
-      // Add date range filters if selected
       if (filterFromDate) {
         params.from_date = filterFromDate;
       }
@@ -143,89 +140,31 @@ const Logs = () => {
         params.to_date = filterToDate;
       }
 
-      // Add regional hub filter if selected
       if (selectedRegionalHub) {
         params.regional_hub = selectedRegionalHub;
       }
 
-      console.log("📤 Fetching logs with params:", params);
-
       const response = await getLogs(params);
-
-      console.log("📥 LOGS API RESPONSE:");
-      console.log("  - Success:", response.success);
-      console.log("  - Data count:", response.data?.length);
-      console.log("  - Has meta:", !!response.meta);
-      console.log("  - Has pagination (direct):", !!response.pagination);
-      console.log("  - Meta.pagination:", response.meta?.pagination);
-      console.log("  - Full response:", response);
 
       if (response.success) {
         const logsData = response.data || [];
         setLogs(logsData);
 
-        // UNIVERSAL PAGINATION HANDLER - handles ALL response structures!
-        // Try multiple possible locations for pagination data
-        let paginationData = null;
+        // Universal pagination handler
+        let paginationData = response.pagination || response.meta?.pagination || response.meta;
 
-        // Option 1: response.pagination (standard)
-        if (response.pagination) {
-          paginationData = response.pagination;
-          console.log("✅ Found pagination at: response.pagination");
-        }
-        // Option 2: response.meta.pagination (like Modules API)
-        else if (response.meta?.pagination) {
-          paginationData = response.meta.pagination;
-          console.log("✅ Found pagination at: response.meta.pagination");
-        }
-        // Option 3: response.meta (direct)
-        else if (response.meta) {
-          paginationData = response.meta;
-          console.log("⚠️ Using response.meta as fallback");
-        }
-        // Option 4: Create from data length
-        else {
-          console.warn("⚠️ No pagination data found - calculating from data");
-          paginationData = {
-            total: logsData.length,
-            totalPages: logsData.length > 0 ? 1 : 0,
-          };
-        }
-
-        // Extract values with multiple fallback options
-        const totalFromBackend = Number(paginationData.total ?? paginationData.count ?? logsData.length ?? 0);
-
-        // Calculate total pages with fallback
-        const calculatedTotalPages = totalFromBackend > 0 ? Math.ceil(totalFromBackend / pagination.pageSize) : logsData.length > 0 ? 1 : 0; // If we have data but no total, assume 1 page
-
-        const totalPagesFromBackend = Number(paginationData.totalPages ?? paginationData.total_pages ?? calculatedTotalPages);
-
-        console.log("📊 Pagination Processing:");
-        console.log("  - Raw pagination data:", paginationData);
-        console.log("  - Total records:", totalFromBackend);
-        console.log("  - Page size:", pagination.pageSize);
-        console.log("  - Total pages (backend):", paginationData.totalPages);
-        console.log("  - Total pages (calculated):", calculatedTotalPages);
-        console.log("  - Total pages (FINAL):", totalPagesFromBackend);
-        console.log("  - Current page:", pagination.currentPage);
-        console.log("  - Logs displayed:", logsData.length);
+        const totalFromBackend = Number(paginationData?.total ?? paginationData?.count ?? logsData.length ?? 0);
+        const calculatedTotalPages = totalFromBackend > 0 ? Math.ceil(totalFromBackend / pagination.pageSize) : logsData.length > 0 ? 1 : 0;
+        const totalPagesFromBackend = Number(paginationData?.totalPages ?? paginationData?.total_pages ?? calculatedTotalPages);
 
         setPagination((prev) => ({
           ...prev,
           total: totalFromBackend,
           totalPages: totalPagesFromBackend,
         }));
-
-        // Diagnostic warnings
-        if (!response.pagination && !response.meta) {
-          console.error("🔴 CRITICAL: No pagination data in response at all!");
-        }
-      } else {
-        console.error("❌ API returned success: false");
-        setError("Failed to load logs");
       }
     } catch (err) {
-      console.error("❌ Failed to fetch logs:", err);
+      console.error("Failed to fetch logs:", err);
       setError("Failed to load logs. Please try again.");
     } finally {
       setLoading(false);
@@ -284,11 +223,8 @@ const Logs = () => {
   // =====================================================
 
   const handlePageChange = (newPage) => {
-    console.log(`🔄 Page change requested: ${pagination.currentPage} → ${newPage}`);
     if (newPage >= 1 && newPage <= pagination.totalPages) {
       setPagination((prev) => ({ ...prev, currentPage: newPage }));
-    } else {
-      console.warn(`⚠️ Invalid page number: ${newPage} (valid range: 1-${pagination.totalPages})`);
     }
   };
 
@@ -299,7 +235,6 @@ const Logs = () => {
   const handleExportExcel = async () => {
     try {
       setExporting(true);
-      // Pass regional hub filter to export
       await exportLogs({ regional_hub: selectedRegionalHub });
     } catch (err) {
       console.error("Failed to export logs:", err);
@@ -362,11 +297,6 @@ const Logs = () => {
   }
 
   // =====================================================
-  // PAGINATION INFO (for debugging)
-  // =====================================================
-  const showPaginationDebug = process.env.NODE_ENV === "development";
-
-  // =====================================================
   // MAIN RENDER
   // =====================================================
 
@@ -396,7 +326,6 @@ const Logs = () => {
               <label className="text-sm font-semibold text-primary">Filter by Regional Hub:</label>
             </div>
             <div className="flex gap-2 flex-wrap">
-              {/* All option */}
               <button
                 onClick={() => handleRegionalHubChange("")}
                 className={`px-4 py-2 rounded-xl border-2 transition-all ${selectedRegionalHub === "" ? "border-primary bg-primary/10 text-primary" : "border-gray-200 dark:border-white/10 text-secondary hover:border-primary/50"}`}
@@ -404,7 +333,6 @@ const Logs = () => {
                 <span className="font-semibold">All Hubs</span>
               </button>
 
-              {/* Head branches */}
               {headBranches.map((branch) => (
                 <button
                   key={branch.branch_code}
@@ -634,17 +562,15 @@ const Logs = () => {
                 </tbody>
               </table>
 
-              {/* IMPROVED: Pagination - Always show if totalPages >= 1 */}
+              {/* Pagination */}
               {pagination.total > 0 && (
                 <div className="p-6 border-t border-gray-200/50 dark:border-white/10">
                   <div className="flex items-center justify-between">
-                    {/* Results info */}
                     <p className="text-sm text-secondary">
                       Showing {(pagination.currentPage - 1) * pagination.pageSize + 1} to {Math.min(pagination.currentPage * pagination.pageSize, pagination.total)} of {pagination.total} logs
                     </p>
 
-                    {/* Pagination controls - show even if only 1 page */}
-                    {pagination.totalPages >= 1 && (
+                    {pagination.totalPages > 1 && (
                       <div className="flex items-center gap-2">
                         <Button variant="ghost" size="small" icon={<ChevronLeft className="w-4 h-4" />} onClick={() => handlePageChange(pagination.currentPage - 1)} disabled={pagination.currentPage === 1}>
                           Previous
@@ -653,7 +579,6 @@ const Logs = () => {
                         <div className="flex items-center gap-1">
                           {Array.from({ length: pagination.totalPages }, (_, i) => {
                             const page = i + 1;
-                            // Show first page, last page, current page, and pages around current
                             if (page === 1 || page === pagination.totalPages || Math.abs(page - pagination.currentPage) <= 1) {
                               return (
                                 <button

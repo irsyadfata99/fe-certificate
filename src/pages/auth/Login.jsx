@@ -4,12 +4,7 @@ import { useAuth } from "@hooks/useAuth";
 import Button from "@components/common/Button";
 import ThemeToggle from "@components/common/ThemeToggle";
 import { ENV } from "@config/env";
-import toast from "react-hot-toast"; // Import toast
 
-/**
- * Login Page - Redesigned with Glassmorphism
- * Matches dashboard design language
- */
 const Login = () => {
   const { login } = useAuth();
 
@@ -30,9 +25,6 @@ const Login = () => {
   // HANDLERS
   // =====================================================
 
-  /**
-   * Handle input change
-   */
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -40,7 +32,6 @@ const Login = () => {
       [name]: value,
     }));
 
-    // Clear error when user types
     if (errors[name]) {
       setErrors((prev) => ({
         ...prev,
@@ -49,9 +40,6 @@ const Login = () => {
     }
   };
 
-  /**
-   * Validate form
-   */
   const validateForm = () => {
     const newErrors = {};
 
@@ -67,53 +55,27 @@ const Login = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  /**
-   * Handle form submit
-   */
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Prevent double submission
     if (isSubmitting) return;
 
-    // Validate form
     if (!validateForm()) {
       return;
     }
 
-    // Set submitting state to lock form
     setIsSubmitting(true);
 
     try {
-      // Call login from useAuth hook
       await login({
         username: formData.username.trim(),
         password: formData.password,
       });
-
-      // Keep loading state - navigation will happen in useAuth
-      // Don't set isSubmitting to false here
     } catch (error) {
-      // Only unlock form on error
       setIsSubmitting(false);
-
-      // MANUAL ERROR TOAST - untuk memastikan toast muncul
-      console.error("❌ Login failed:", error);
-
-      // Extract error message
-      const errorMessage = error.response?.data?.message || error.message || "Login failed. Please check your credentials.";
-
-      // Show toast manually
-      toast.error(errorMessage, {
-        duration: 5000,
-        position: "top-right",
-      });
     }
   };
 
-  /**
-   * Toggle password visibility
-   */
   const togglePasswordVisibility = () => {
     setShowPassword((prev) => !prev);
   };
@@ -124,7 +86,7 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-base flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Animated Background Gradients - matching dashboard */}
+      {/* Animated Background Gradients */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 -left-4 w-72 h-72 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute top-20 right-10 w-96 h-96 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
@@ -132,7 +94,7 @@ const Login = () => {
       </div>
 
       <div className="w-full max-w-md relative z-10">
-        {/* Main Card - Glassmorphism Style */}
+        {/* Main Card */}
         <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-8 border border-gray-200/50 dark:border-white/10 shadow-2xl">
           {/* Header with Theme Toggle */}
           <div className="flex items-center justify-between mb-6">
