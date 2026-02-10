@@ -374,7 +374,7 @@ const Modules = () => {
     editForm.resetForm();
 
     // Construct age range label
-    const ageRangeLabel = `${module.min_age}-${module.max_age} tahun`;
+    const ageRangeLabel = `${module.min_age}-${module.max_age}`;
 
     // Then set field values
     setTimeout(() => {
@@ -542,12 +542,12 @@ const Modules = () => {
               >
                 <option value="">All Age Ranges</option>
                 <optgroup label="Little Koders (LK)">
-                  <option value="4-6">4-6 tahun</option>
-                  <option value="6-8">6-8 tahun</option>
+                  <option value="4-6">4-6</option>
+                  <option value="6-8">6-8</option>
                 </optgroup>
                 <optgroup label="Junior Koders (JK)">
-                  <option value="8-12">8-12 tahun</option>
-                  <option value="12-16">12-16 tahun</option>
+                  <option value="8-12">8-12</option>
+                  <option value="12-16">12-16</option>
                 </optgroup>
               </select>
             </div>
@@ -574,7 +574,7 @@ const Modules = () => {
               )}
               {filterAgeRange && (
                 <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-lg text-xs">
-                  Age: {filterAgeRange} tahun
+                  Age: {filterAgeRange}
                   <button onClick={() => setFilterAgeRange("")} className="hover:bg-primary/20 rounded">
                     <X className="w-3 h-3" />
                   </button>
@@ -670,7 +670,7 @@ const Modules = () => {
                         <td className="px-6 py-4">
                           <div className="flex justify-center">
                             <span className="px-3 py-1 rounded-full text-xs font-semibold text-primary bg-white/50 dark:bg-white/10 border border-gray-200/50 dark:border-white/10">
-                              {module.min_age}-{module.max_age} tahun
+                              {module.min_age}-{module.max_age}
                             </span>
                           </div>
                         </td>

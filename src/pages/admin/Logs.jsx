@@ -30,7 +30,7 @@ const Logs = () => {
   // Pagination state
   const [pagination, setPagination] = useState({
     currentPage: 1,
-    pageSize: 10,
+    pageSize: 8,
     total: 0,
     totalPages: 0,
   });
@@ -109,7 +109,7 @@ const Logs = () => {
   };
 
   // =====================================================
-  // DATA FETCHING - FIXED PAGINATION HANDLING
+  // DATA FETCHING - IMPROVED WITH BETTER DEBUGGING
   // =====================================================
 
   const fetchLogs = useCallback(async () => {
@@ -148,33 +148,84 @@ const Logs = () => {
         params.regional_hub = selectedRegionalHub;
       }
 
+      console.log("📤 Fetching logs with params:", params);
+
       const response = await getLogs(params);
 
-      console.log("=== LOGS API RESPONSE ===");
-      console.log("Full response:", response);
-      console.log("Response data:", response.data);
-      console.log("Response pagination:", response.pagination);
+      console.log("📥 LOGS API RESPONSE:");
+      console.log("  - Success:", response.success);
+      console.log("  - Data count:", response.data?.length);
+      console.log("  - Has meta:", !!response.meta);
+      console.log("  - Has pagination (direct):", !!response.pagination);
+      console.log("  - Meta.pagination:", response.meta?.pagination);
+      console.log("  - Full response:", response);
 
       if (response.success) {
-        setLogs(response.data || []);
+        const logsData = response.data || [];
+        setLogs(logsData);
 
-        // FIXED: Same pattern as Modules.jsx - handle pagination properly
-        const paginationData = response.pagination || {};
-        const totalFromBackend = paginationData.total || 0;
-        const totalPagesFromBackend = paginationData.totalPages || Math.ceil(totalFromBackend / pagination.pageSize) || 1;
+        // UNIVERSAL PAGINATION HANDLER - handles ALL response structures!
+        // Try multiple possible locations for pagination data
+        let paginationData = null;
 
-        console.log("Pagination data:", paginationData);
-        console.log("Total from backend:", totalFromBackend);
-        console.log("Total pages:", totalPagesFromBackend);
+        // Option 1: response.pagination (standard)
+        if (response.pagination) {
+          paginationData = response.pagination;
+          console.log("✅ Found pagination at: response.pagination");
+        }
+        // Option 2: response.meta.pagination (like Modules API)
+        else if (response.meta?.pagination) {
+          paginationData = response.meta.pagination;
+          console.log("✅ Found pagination at: response.meta.pagination");
+        }
+        // Option 3: response.meta (direct)
+        else if (response.meta) {
+          paginationData = response.meta;
+          console.log("⚠️ Using response.meta as fallback");
+        }
+        // Option 4: Create from data length
+        else {
+          console.warn("⚠️ No pagination data found - calculating from data");
+          paginationData = {
+            total: logsData.length,
+            totalPages: logsData.length > 0 ? 1 : 0,
+          };
+        }
+
+        // Extract values with multiple fallback options
+        const totalFromBackend = Number(paginationData.total ?? paginationData.count ?? logsData.length ?? 0);
+
+        // Calculate total pages with fallback
+        const calculatedTotalPages = totalFromBackend > 0 ? Math.ceil(totalFromBackend / pagination.pageSize) : logsData.length > 0 ? 1 : 0; // If we have data but no total, assume 1 page
+
+        const totalPagesFromBackend = Number(paginationData.totalPages ?? paginationData.total_pages ?? calculatedTotalPages);
+
+        console.log("📊 Pagination Processing:");
+        console.log("  - Raw pagination data:", paginationData);
+        console.log("  - Total records:", totalFromBackend);
+        console.log("  - Page size:", pagination.pageSize);
+        console.log("  - Total pages (backend):", paginationData.totalPages);
+        console.log("  - Total pages (calculated):", calculatedTotalPages);
+        console.log("  - Total pages (FINAL):", totalPagesFromBackend);
+        console.log("  - Current page:", pagination.currentPage);
+        console.log("  - Logs displayed:", logsData.length);
 
         setPagination((prev) => ({
           ...prev,
           total: totalFromBackend,
           totalPages: totalPagesFromBackend,
         }));
+
+        // Diagnostic warnings
+        if (!response.pagination && !response.meta) {
+          console.error("🔴 CRITICAL: No pagination data in response at all!");
+        }
+      } else {
+        console.error("❌ API returned success: false");
+        setError("Failed to load logs");
       }
     } catch (err) {
-      console.error("Failed to fetch logs:", err);
+      console.error("❌ Failed to fetch logs:", err);
       setError("Failed to load logs. Please try again.");
     } finally {
       setLoading(false);
@@ -233,8 +284,11 @@ const Logs = () => {
   // =====================================================
 
   const handlePageChange = (newPage) => {
+    console.log(`🔄 Page change requested: ${pagination.currentPage} → ${newPage}`);
     if (newPage >= 1 && newPage <= pagination.totalPages) {
       setPagination((prev) => ({ ...prev, currentPage: newPage }));
+    } else {
+      console.warn(`⚠️ Invalid page number: ${newPage} (valid range: 1-${pagination.totalPages})`);
     }
   };
 
@@ -306,6 +360,11 @@ const Logs = () => {
       </div>
     );
   }
+
+  // =====================================================
+  // PAGINATION INFO (for debugging)
+  // =====================================================
+  const showPaginationDebug = process.env.NODE_ENV === "development";
 
   // =====================================================
   // MAIN RENDER
@@ -496,25 +555,12 @@ const Logs = () => {
               <table className="w-full">
                 <thead className="bg-white/20 dark:bg-white/5 border-b border-gray-200/30 dark:border-white/5">
                   <tr>
-                    {/* Certificate ID */}
                     <th className="px-6 py-4 text-left text-sm font-semibold text-primary uppercase">Certificate ID</th>
-
-                    {/* Action Type */}
                     <th className="px-6 py-4 text-center text-sm font-semibold text-primary uppercase">Action</th>
-
-                    {/* Description */}
                     <th className="px-6 py-4 text-left text-sm font-semibold text-primary uppercase">Description</th>
-
-                    {/* Migration */}
                     <th className="px-6 py-4 text-center text-sm font-semibold text-primary uppercase">Migration</th>
-
-                    {/* Amounts */}
                     <th className="px-6 py-4 text-center text-sm font-semibold text-primary uppercase">Amounts</th>
-
-                    {/* Performed By */}
                     <th className="px-6 py-4 text-left text-sm font-semibold text-primary uppercase">Performed By</th>
-
-                    {/* Date */}
                     <th className="px-6 py-4 text-left text-sm font-semibold text-primary uppercase">Date</th>
                   </tr>
                 </thead>
@@ -524,7 +570,6 @@ const Logs = () => {
 
                     return (
                       <tr key={log.id} className="hover:bg-white/30 dark:hover:bg-white/10 transition-colors">
-                        {/* Certificate ID */}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="p-2 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 shadow-md">
@@ -533,20 +578,14 @@ const Logs = () => {
                             <span className="text-sm font-semibold text-primary">{log.certificate_id}</span>
                           </div>
                         </td>
-
-                        {/* Action Type */}
                         <td className="px-6 py-4">
                           <div className="flex justify-center">
                             <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white bg-gradient-to-br ${actionBadge.color} shadow-md`}>{actionBadge.label}</span>
                           </div>
                         </td>
-
-                        {/* Description */}
                         <td className="px-6 py-4">
                           <span className="text-sm text-primary line-clamp-2">{log.description || "-"}</span>
                         </td>
-
-                        {/* Migration */}
                         <td className="px-6 py-4">
                           {log.from_branch && log.to_branch ? (
                             <div className="flex items-center justify-center gap-2">
@@ -560,8 +599,6 @@ const Logs = () => {
                             </div>
                           )}
                         </td>
-
-                        {/* Amounts */}
                         <td className="px-6 py-4">
                           <div className="flex flex-col items-center gap-1">
                             {log.certificate_amount > 0 && (
@@ -579,16 +616,12 @@ const Logs = () => {
                             {log.certificate_amount === 0 && log.medal_amount === 0 && <span className="text-sm text-secondary">-</span>}
                           </div>
                         </td>
-
-                        {/* Performed By */}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <Users className="w-4 h-4 text-secondary" />
                             <span className="text-sm text-primary">{log.performed_by || "System"}</span>
                           </div>
                         </td>
-
-                        {/* Date */}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-secondary" />
@@ -601,54 +634,62 @@ const Logs = () => {
                 </tbody>
               </table>
 
-              {/* Pagination */}
-              <div className="p-6 border-t border-gray-200/50 dark:border-white/10">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-secondary">
-                    Showing {(pagination.currentPage - 1) * pagination.pageSize + 1} to {Math.min(pagination.currentPage * pagination.pageSize, pagination.total)} of {pagination.total} logs
-                  </p>
-                  {pagination.totalPages > 1 && (
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="small" icon={<ChevronLeft className="w-4 h-4" />} onClick={() => handlePageChange(pagination.currentPage - 1)} disabled={pagination.currentPage === 1}>
-                        Previous
-                      </Button>
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: pagination.totalPages }, (_, i) => {
-                          const page = i + 1;
-                          if (page === 1 || page === pagination.totalPages || Math.abs(page - pagination.currentPage) <= 1) {
-                            return (
-                              <button
-                                key={page}
-                                onClick={() => handlePageChange(page)}
-                                className={`min-w-[2.5rem] h-10 px-3 rounded-lg text-sm font-medium transition-colors ${page === pagination.currentPage ? "bg-primary text-white" : "text-primary hover:bg-white/30 dark:hover:bg-white/5"}`}
-                              >
-                                {page}
-                              </button>
-                            );
-                          } else if (page === pagination.currentPage - 2 || page === pagination.currentPage + 2) {
-                            return (
-                              <span key={page} className="px-2 text-secondary">
-                                ...
-                              </span>
-                            );
-                          }
-                          return null;
-                        })}
+              {/* IMPROVED: Pagination - Always show if totalPages >= 1 */}
+              {pagination.total > 0 && (
+                <div className="p-6 border-t border-gray-200/50 dark:border-white/10">
+                  <div className="flex items-center justify-between">
+                    {/* Results info */}
+                    <p className="text-sm text-secondary">
+                      Showing {(pagination.currentPage - 1) * pagination.pageSize + 1} to {Math.min(pagination.currentPage * pagination.pageSize, pagination.total)} of {pagination.total} logs
+                    </p>
+
+                    {/* Pagination controls - show even if only 1 page */}
+                    {pagination.totalPages >= 1 && (
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="small" icon={<ChevronLeft className="w-4 h-4" />} onClick={() => handlePageChange(pagination.currentPage - 1)} disabled={pagination.currentPage === 1}>
+                          Previous
+                        </Button>
+
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: pagination.totalPages }, (_, i) => {
+                            const page = i + 1;
+                            // Show first page, last page, current page, and pages around current
+                            if (page === 1 || page === pagination.totalPages || Math.abs(page - pagination.currentPage) <= 1) {
+                              return (
+                                <button
+                                  key={page}
+                                  onClick={() => handlePageChange(page)}
+                                  className={`min-w-[2.5rem] h-10 px-3 rounded-lg text-sm font-medium transition-colors ${page === pagination.currentPage ? "bg-primary text-white" : "text-primary hover:bg-white/30 dark:hover:bg-white/5"}`}
+                                >
+                                  {page}
+                                </button>
+                              );
+                            } else if (page === pagination.currentPage - 2 || page === pagination.currentPage + 2) {
+                              return (
+                                <span key={page} className="px-2 text-secondary">
+                                  ...
+                                </span>
+                              );
+                            }
+                            return null;
+                          })}
+                        </div>
+
+                        <Button
+                          variant="ghost"
+                          size="small"
+                          icon={<ChevronRight className="w-4 h-4" />}
+                          iconPosition="right"
+                          onClick={() => handlePageChange(pagination.currentPage + 1)}
+                          disabled={pagination.currentPage === pagination.totalPages}
+                        >
+                          Next
+                        </Button>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="small"
-                        icon={<ChevronRight className="w-4 h-4" />}
-                        iconPosition="right"
-                        onClick={() => handlePageChange(pagination.currentPage + 1)}
-                        disabled={pagination.currentPage === pagination.totalPages}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </>
           )}
         </div>
