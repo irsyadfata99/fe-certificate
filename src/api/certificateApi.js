@@ -54,11 +54,11 @@ export const getCertificateById = async (certificateId) => {
 
 /**
  * Create new certificate batch
- * Backend automatically creates stock for central branch (SND)
  * @param {Object} data - Certificate data
  * @param {string} data.certificate_id - Batch ID
  * @param {number} data.jumlah_sertifikat - Number of certificates
  * @param {number} data.jumlah_medali - Number of medals
+ * @param {string} data.branch_code - Head branch code (for admin)
  * @returns {Promise} API response
  */
 export const createCertificate = async (data) => {
@@ -67,9 +67,12 @@ export const createCertificate = async (data) => {
       certificate_id: data.certificate_id,
       jumlah_sertifikat: parseInt(data.jumlah_sertifikat) || 0,
       jumlah_medali: parseInt(data.jumlah_medali) || 0,
+      branch_code: data.branch_code, // Send selected head branch
     });
 
-    toast.success(response.data?.message || "Certificate batch created successfully");
+    toast.success(
+      response.data?.message || "Certificate batch created successfully",
+    );
 
     return response.data;
   } catch (error) {
@@ -79,7 +82,7 @@ export const createCertificate = async (data) => {
 };
 
 /**
- * Migrate certificate stock from central branch to another branch
+ * Migrate certificate stock from head branch to another branch in same regional hub
  * @param {Object} data - Migration data
  * @param {string} data.certificate_id - Batch ID to migrate
  * @param {string} data.destination_branch - Branch code to migrate to (e.g., 'MKW', 'KBP')
@@ -146,7 +149,9 @@ export const getTransactionHistory = async (params = {}) => {
       queryParams.append("to_date", to_date.trim());
     }
 
-    const response = await api.get(`/certificates/history?${queryParams.toString()}`);
+    const response = await api.get(
+      `/certificates/history?${queryParams.toString()}`,
+    );
 
     return response.data;
   } catch (error) {
@@ -163,7 +168,9 @@ export const clearAllCertificates = async () => {
   try {
     const response = await api.post("/certificates/clear-all");
 
-    toast.success(response.data?.message || "All certificates cleared successfully");
+    toast.success(
+      response.data?.message || "All certificates cleared successfully",
+    );
 
     return response.data;
   } catch (error) {

@@ -10,8 +10,10 @@ import {
   Package,
   Award,
   RefreshCw,
+  Building2,
 } from "lucide-react";
 import { useAuth } from "@hooks/useAuth";
+import { useHeadBranches } from "@hooks/useBranches";
 import Button from "@components/common/Button";
 import Spinner from "@components/common/Spinner";
 import { getCertificates, getStockSummary } from "@api/certificateApi";
@@ -24,6 +26,13 @@ import { DATE_FORMATS } from "@utils/constants";
 const Dashboard = () => {
   const navigate = useNavigate();
   const { getUserDisplayName } = useAuth();
+
+  // Fetch head branches for filtering stock summary
+  const {
+    headBranches,
+    loading: headBranchesLoading,
+    error: headBranchesError,
+  } = useHeadBranches();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -66,28 +75,51 @@ const Dashboard = () => {
         }
 
         // =====================================================
-        // FIXED: Process stock summary with correct structure
+        // PROCESS STOCK SUMMARY - FILTER HEAD BRANCHES ONLY
         // =====================================================
         let processedStock = null;
         let totalCertificates = 0;
         let totalMedals = 0;
 
-        if (stockRes.status === "fulfilled" && stockRes.value?.data) {
+        if (
+          stockRes.status === "fulfilled" &&
+          stockRes.value?.data &&
+          headBranches.length > 0
+        ) {
           const stockData = stockRes.value.data;
 
           // Backend returns: { stock_by_branch: { 'SND': {...}, 'MKW': {...}, 'KBP': {...} }, grand_total: {...} }
           if (stockData.stock_by_branch) {
             processedStock = {};
 
+            // Get head branch codes for filtering
+            const headBranchCodes = headBranches.map((b) => b.branch_code);
+
+            console.log("Head Branch Codes:", headBranchCodes);
+            console.log("Stock Data:", stockData.stock_by_branch);
+
             // Process each branch from stock_by_branch
             Object.entries(stockData.stock_by_branch).forEach(
               ([branchCode, branchData]) => {
-                processedStock[branchCode] = {
-                  certificates: branchData.certificates || 0,
-                  medals: branchData.medals || 0,
-                  branch_name: branchData.branch_name || branchCode,
-                };
+                console.log(
+                  `Checking branch ${branchCode}, is head:`,
+                  headBranchCodes.includes(branchCode),
+                );
+
+                // FILTER: Only include head branches
+                if (headBranchCodes.includes(branchCode)) {
+                  processedStock[branchCode] = {
+                    certificates: branchData.certificates || 0,
+                    medals: branchData.medals || 0,
+                    branch_name: branchData.branch_name || branchCode,
+                  };
+                }
               },
+            );
+
+            console.log(
+              "Processed Stock (Head Branches Only):",
+              processedStock,
             );
 
             // Use grand_total if available, otherwise calculate
@@ -95,10 +127,10 @@ const Dashboard = () => {
               totalCertificates = stockData.grand_total.certificates || 0;
               totalMedals = stockData.grand_total.medals || 0;
             } else {
-              // Fallback: calculate from stock_by_branch
-              Object.values(processedStock).forEach((branch) => {
-                totalCertificates += branch.certificates;
-                totalMedals += branch.medals;
+              // Fallback: calculate from stock_by_branch (all branches, not just head)
+              Object.values(stockData.stock_by_branch).forEach((branch) => {
+                totalCertificates += branch.certificates || 0;
+                totalMedals += branch.medals || 0;
               });
             }
           }
@@ -151,8 +183,11 @@ const Dashboard = () => {
       }
     };
 
-    fetchDashboardData();
-  }, []);
+    // Only fetch when head branches are loaded
+    if (!headBranchesLoading && headBranches.length > 0) {
+      fetchDashboardData();
+    }
+  }, [headBranches, headBranchesLoading]);
 
   // Stats cards configuration
   const statsCards = [
@@ -248,11 +283,22 @@ const Dashboard = () => {
     return log.description || "Certificate activity";
   };
 
+  // Branch color mapping (for consistent colors)
+  const getBranchColor = (branchCode) => {
+    const colors = {
+      SND: "from-green-500 to-emerald-500",
+      MKW: "from-purple-500 to-pink-500",
+      KBP: "from-orange-500 to-red-500",
+      default: "from-blue-500 to-cyan-500",
+    };
+    return colors[branchCode] || colors.default;
+  };
+
   // =====================================================
   // LOADING STATE
   // =====================================================
 
-  if (loading) {
+  if (loading || headBranchesLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Spinner size="large" />
@@ -264,7 +310,7 @@ const Dashboard = () => {
   // ERROR STATE
   // =====================================================
 
-  if (error) {
+  if (error || headBranchesError) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center max-w-md">
@@ -274,7 +320,7 @@ const Dashboard = () => {
           <h3 className="text-lg font-semibold text-primary mb-2">
             Failed to Load Dashboard
           </h3>
-          <p className="text-secondary mb-4">{error}</p>
+          <p className="text-secondary mb-4">{error || headBranchesError}</p>
           <Button
             variant="primary"
             onClick={() => window.location.reload()}
@@ -335,22 +381,30 @@ const Dashboard = () => {
         })}
       </div>
 
-      {/* Stock Summary - Glassmorphism */}
+      {/* Stock Summary by Head Branch - Glassmorphism */}
       {stats.stockSummary && Object.keys(stats.stockSummary).length > 0 && (
         <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg">
-          <h2 className="text-lg font-semibold text-primary mb-4">
-            Stock Summary by Branch
-          </h2>
+          <div className="flex items-center gap-2 mb-4">
+            <Building2 className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold text-primary">
+              Stock Summary by Head Branch
+            </h2>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {Object.entries(stats.stockSummary).map(([branch, stock]) => (
+            {Object.entries(stats.stockSummary).map(([branchCode, stock]) => (
               <div
-                key={branch}
+                key={branchCode}
                 className="backdrop-blur-sm bg-white/20 dark:bg-white/5 p-4 rounded-xl border border-gray-200/30 dark:border-white/5 hover:bg-white/30 dark:hover:bg-white/10 transition-all"
               >
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-base font-semibold text-primary">
-                    {stock.branch_name || branch}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`w-3 h-3 rounded-full bg-gradient-to-br ${getBranchColor(branchCode)}`}
+                    ></span>
+                    <h3 className="text-base font-semibold text-primary">
+                      {branchCode}
+                    </h3>
+                  </div>
                   <div className="flex items-center gap-2">
                     <FileText className="w-4 h-4 text-blue-500" />
                     <Award className="w-4 h-4 text-yellow-500" />

@@ -5,7 +5,7 @@ import { handleOperationSuccess } from "../utils/successHandler";
 
 /**
  * Branch API Service
- * Handles branch CRUD operations
+ * Handles branch CRUD operations with regional hub support
  */
 
 /**
@@ -64,8 +64,41 @@ export const getBranchById = async (branchId) => {
 };
 
 /**
+ * Get all head branches (for dropdown)
+ * @returns {Promise} List of head branches
+ */
+export const getHeadBranches = async () => {
+  try {
+    const response = await axiosInstance.get(
+      `${ENDPOINTS.BRANCHES}/head-branches`,
+    );
+    return response.data;
+  } catch (error) {
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
+ * Get branches by regional hub
+ * @param {string} hub - Regional hub code
+ * @returns {Promise} List of branches in the hub
+ */
+export const getBranchesByHub = async (hub) => {
+  try {
+    const response = await axiosInstance.get(
+      `${ENDPOINTS.BRANCHES}/hub/${hub}`,
+    );
+    return response.data;
+  } catch (error) {
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
  * Create new branch (Admin only)
- * @param {Object} data - { branch_code, branch_name }
+ * @param {Object} data - { branch_code, branch_name, is_head_branch, regional_hub }
  * @returns {Promise} Created branch
  */
 export const createBranch = async (data) => {
@@ -86,13 +119,17 @@ export const createBranch = async (data) => {
 
 /**
  * Update branch name (Admin only)
+ * Note: branch_code, is_head_branch, regional_hub are immutable
  * @param {number} branchId
  * @param {Object} data - { branch_name }
  * @returns {Promise} Updated branch
  */
 export const updateBranch = async (branchId, data) => {
   try {
-    const response = await axiosInstance.put(ENDPOINTS.BRANCH_BY_ID(branchId), data);
+    const response = await axiosInstance.put(
+      ENDPOINTS.BRANCH_BY_ID(branchId),
+      data,
+    );
 
     if (response.data.success) {
       handleOperationSuccess("update", response.data.data);
@@ -114,10 +151,16 @@ export const updateBranch = async (branchId, data) => {
  */
 export const toggleBranchStatus = async (branchId, isActive) => {
   try {
-    const response = await axiosInstance.patch(`${ENDPOINTS.BRANCHES}/${branchId}/toggle-status`, { is_active: isActive });
+    const response = await axiosInstance.patch(
+      `${ENDPOINTS.BRANCHES}/${branchId}/toggle-status`,
+      { is_active: isActive },
+    );
 
     if (response.data.success) {
-      handleOperationSuccess(isActive ? "activate" : "deactivate", response.data.data);
+      handleOperationSuccess(
+        isActive ? "activate" : "deactivate",
+        response.data.data,
+      );
       return response.data;
     }
 
@@ -131,12 +174,15 @@ export const toggleBranchStatus = async (branchId, isActive) => {
 /**
  * Delete branch (Admin only)
  * Must have no dependencies (students, stock, teachers)
+ * Additional: Cannot delete head branch if it has dependent branches
  * @param {number} branchId
  * @returns {Promise} Delete result
  */
 export const deleteBranch = async (branchId) => {
   try {
-    const response = await axiosInstance.delete(ENDPOINTS.BRANCH_BY_ID(branchId));
+    const response = await axiosInstance.delete(
+      ENDPOINTS.BRANCH_BY_ID(branchId),
+    );
 
     if (response.data.success) {
       handleOperationSuccess("delete", response.data.data);
@@ -152,7 +198,8 @@ export const deleteBranch = async (branchId) => {
 
 /**
  * Get branch statistics
- * @returns {Promise} Branch stats (students, teachers, stock)
+ * Now includes regional hub breakdown
+ * @returns {Promise} Branch stats (students, teachers, stock, regional_hubs)
  */
 export const getBranchStats = async () => {
   try {

@@ -19,6 +19,8 @@ import {
   Users,
   FileText,
   GraduationCap,
+  Building2,
+  Network,
 } from "lucide-react";
 import Button from "@components/common/Button";
 import Spinner from "@components/common/Spinner";
@@ -26,6 +28,7 @@ import Modal from "@components/common/Modal";
 import Input from "@components/common/Input";
 import { useForm } from "@hooks/useForm";
 import { useDebounce } from "@hooks/useDebounce";
+import { useHeadBranches } from "@hooks/useBranches";
 import {
   getAllBranches,
   createBranch,
@@ -39,6 +42,11 @@ import { DATE_FORMATS } from "@utils/constants";
 import { toast } from "react-hot-toast";
 
 const Branches = () => {
+  // =====================================================
+  // HOOKS - HEAD BRANCHES
+  // =====================================================
+  const { headBranches, loading: headBranchesLoading } = useHeadBranches();
+
   // =====================================================
   // STATE MANAGEMENT
   // =====================================================
@@ -61,6 +69,7 @@ const Branches = () => {
 
   // Filter states
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterType, setFilterType] = useState("all"); // NEW: all, head, regular
 
   // Sorting state
   const [sortConfig, setSortConfig] = useState({
@@ -97,12 +106,30 @@ const Branches = () => {
       maxLength: 100,
       maxLengthMessage: "Branch name must not exceed 100 characters",
     },
+    regional_hub: {
+      validate: (value, values) => {
+        // If is_head_branch is true, regional_hub must equal branch_code
+        if (values.is_head_branch) {
+          if (value !== values.branch_code) {
+            return "Head branch must have regional_hub equal to its branch_code";
+          }
+        } else {
+          // If not head branch, regional_hub is required
+          if (!value || !value.trim()) {
+            return "Regional hub is required for regular branches";
+          }
+        }
+        return null;
+      },
+    },
   };
 
   const addForm = useForm(
     {
       branch_code: "",
       branch_name: "",
+      is_head_branch: false,
+      regional_hub: "",
     },
     {
       validationSchema: addValidationSchema,
@@ -136,6 +163,24 @@ const Branches = () => {
   );
 
   // =====================================================
+  // AUTO-SET REGIONAL HUB FOR HEAD BRANCH
+  // =====================================================
+
+  useEffect(() => {
+    if (addForm.values.is_head_branch && addForm.values.branch_code) {
+      // Auto-set regional_hub to branch_code for head branches
+      addForm.setFieldValue("regional_hub", addForm.values.branch_code, false);
+    } else if (
+      !addForm.values.is_head_branch &&
+      addForm.values.regional_hub === addForm.values.branch_code
+    ) {
+      // Clear regional_hub if toggling off head branch
+      addForm.setFieldValue("regional_hub", "", false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addForm.values.is_head_branch, addForm.values.branch_code]);
+
+  // =====================================================
   // DATA FETCHING
   // =====================================================
 
@@ -159,7 +204,10 @@ const Branches = () => {
             const matchesName = branch.branch_name
               .toLowerCase()
               .includes(searchLower);
-            return matchesCode || matchesName;
+            const matchesHub = branch.regional_hub
+              ?.toLowerCase()
+              .includes(searchLower);
+            return matchesCode || matchesName || matchesHub;
           });
         }
 
@@ -168,6 +216,14 @@ const Branches = () => {
           const isActive = filterStatus === "active";
           fetchedBranches = fetchedBranches.filter(
             (branch) => branch.is_active === isActive,
+          );
+        }
+
+        // CLIENT-SIDE FILTERING - Type (NEW)
+        if (filterType !== "all") {
+          const isHead = filterType === "head";
+          fetchedBranches = fetchedBranches.filter(
+            (branch) => branch.is_head_branch === isHead,
           );
         }
 
@@ -209,6 +265,7 @@ const Branches = () => {
     pagination.pageSize,
     debouncedSearch,
     filterStatus,
+    filterType,
     sortConfig.key,
     sortConfig.direction,
   ]);
@@ -260,6 +317,9 @@ const Branches = () => {
       } else if (typeof aVal === "string") {
         aVal = aVal.toLowerCase();
         bVal = bVal.toLowerCase();
+      } else if (typeof aVal === "boolean") {
+        aVal = aVal ? 1 : 0;
+        bVal = bVal ? 1 : 0;
       }
 
       if (aVal < bVal) return direction === "asc" ? -1 : 1;
@@ -303,6 +363,10 @@ const Branches = () => {
       const payload = {
         branch_code: values.branch_code.trim().toUpperCase(),
         branch_name: values.branch_name.trim(),
+        is_head_branch: values.is_head_branch,
+        regional_hub: values.is_head_branch
+          ? values.branch_code.trim().toUpperCase()
+          : values.regional_hub.trim().toUpperCase(),
       };
 
       await createBranch(payload);
@@ -379,11 +443,11 @@ const Branches = () => {
   // =====================================================
 
   const handleDeleteBranch = async (branch) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete branch "${branch.branch_name}"?\n\nThis action CANNOT be undone!\n\nNote: Branch must have no dependencies (students, teachers, stock).`,
-      )
-    ) {
+    const warningMessage = branch.is_head_branch
+      ? `Are you sure you want to delete HEAD BRANCH "${branch.branch_name}"?\n\n⚠️ WARNING: You cannot delete a head branch if it has dependent branches!\n\nThis action CANNOT be undone!`
+      : `Are you sure you want to delete branch "${branch.branch_name}"?\n\nThis action CANNOT be undone!\n\nNote: Branch must have no dependencies (students, teachers, stock).`;
+
+    if (!window.confirm(warningMessage)) {
       return;
     }
 
@@ -435,9 +499,15 @@ const Branches = () => {
     setPagination((prev) => ({ ...prev, currentPage: 1 }));
   };
 
+  const handleTypeFilterChange = (e) => {
+    setFilterType(e.target.value);
+    setPagination((prev) => ({ ...prev, currentPage: 1 }));
+  };
+
   const handleClearFilters = () => {
     setSearchTerm("");
     setFilterStatus("all");
+    setFilterType("all");
     setPagination((prev) => ({ ...prev, currentPage: 1 }));
   };
 
@@ -473,7 +543,7 @@ const Branches = () => {
   // LOADING STATE
   // =====================================================
 
-  if (loading && branches.length === 0) {
+  if ((loading && branches.length === 0) || headBranchesLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Spinner size="large" />
@@ -518,7 +588,7 @@ const Branches = () => {
               Branch Management
             </h1>
             <p className="text-secondary mt-1">
-              Manage branch locations and their status
+              Manage branch locations, head branches, and regional hubs
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -597,7 +667,7 @@ const Branches = () => {
                 name="search"
                 value={searchTerm}
                 onChange={handleSearchChange}
-                placeholder="Search by branch code or name..."
+                placeholder="Search by code, name, or hub..."
                 prefixIcon={<Search className="w-5 h-5" />}
                 suffixIcon={
                   searchTerm ? (
@@ -628,8 +698,21 @@ const Branches = () => {
               </select>
             </div>
 
+            {/* Type Filter (NEW) */}
+            <div className="flex-1 min-w-[200px]">
+              <select
+                value={filterType}
+                onChange={handleTypeFilterChange}
+                className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              >
+                <option value="all">All Types</option>
+                <option value="head">Head Branches Only</option>
+                <option value="regular">Regular Branches Only</option>
+              </select>
+            </div>
+
             {/* Clear Filters Button */}
-            {(searchTerm || filterStatus !== "all") && (
+            {(searchTerm || filterStatus !== "all" || filterType !== "all") && (
               <Button
                 variant="ghost"
                 size="medium"
@@ -642,20 +725,33 @@ const Branches = () => {
           </div>
 
           {/* Active Filters Display */}
-          {filterStatus !== "all" && (
+          {(filterStatus !== "all" || filterType !== "all") && (
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs text-secondary font-medium">
                 Active filters:
               </span>
-              <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-lg text-xs">
-                Status: {filterStatus === "active" ? "Active" : "Inactive"}
-                <button
-                  onClick={() => setFilterStatus("all")}
-                  className="hover:bg-primary/20 rounded"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
+              {filterStatus !== "all" && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-lg text-xs">
+                  Status: {filterStatus === "active" ? "Active" : "Inactive"}
+                  <button
+                    onClick={() => setFilterStatus("all")}
+                    className="hover:bg-primary/20 rounded"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {filterType !== "all" && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-lg text-xs">
+                  Type: {filterType === "head" ? "Head" : "Regular"}
+                  <button
+                    onClick={() => setFilterType("all")}
+                    className="hover:bg-primary/20 rounded"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -710,6 +806,28 @@ const Branches = () => {
                       <div className="flex items-center gap-2">
                         Branch Name
                         <SortIcon columnKey="branch_name" />
+                      </div>
+                    </th>
+
+                    {/* Type (NEW) */}
+                    <th
+                      onClick={() => handleSort("is_head_branch")}
+                      className="px-6 py-4 text-center text-sm font-semibold text-primary uppercase cursor-pointer select-none hover:bg-white/30 dark:hover:bg-white/10 transition-colors"
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        Type
+                        <SortIcon columnKey="is_head_branch" />
+                      </div>
+                    </th>
+
+                    {/* Regional Hub (NEW) */}
+                    <th
+                      onClick={() => handleSort("regional_hub")}
+                      className="px-6 py-4 text-center text-sm font-semibold text-primary uppercase cursor-pointer select-none hover:bg-white/30 dark:hover:bg-white/10 transition-colors"
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        Regional Hub
+                        <SortIcon columnKey="regional_hub" />
                       </div>
                     </th>
 
@@ -768,6 +886,33 @@ const Branches = () => {
                           <span className="text-sm text-primary">
                             {branch.branch_name}
                           </span>
+                        </td>
+
+                        {/* Type (NEW) */}
+                        <td className="px-6 py-4">
+                          <div className="flex justify-center">
+                            {branch.is_head_branch ? (
+                              <span className="px-3 py-1 rounded-full text-xs font-semibold text-white bg-gradient-to-br from-amber-500 to-orange-500 shadow-sm flex items-center gap-1">
+                                <Building2 className="w-3 h-3" />
+                                Head
+                              </span>
+                            ) : (
+                              <span className="px-3 py-1 rounded-full text-xs font-semibold text-gray-600 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 shadow-sm flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                Regular
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Regional Hub (NEW) */}
+                        <td className="px-6 py-4">
+                          <div className="flex justify-center">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-lg text-xs font-medium">
+                              <Network className="w-3 h-3" />
+                              {branch.regional_hub || "-"}
+                            </span>
+                          </div>
                         </td>
 
                         {/* Statistics */}
@@ -877,18 +1022,19 @@ const Branches = () => {
               </table>
 
               {/* Pagination */}
-              <div className="p-6 border-t border-gray-200/50 dark:border-white/10">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-secondary">
-                    Showing{" "}
-                    {(pagination.currentPage - 1) * pagination.pageSize + 1} to{" "}
-                    {Math.min(
-                      pagination.currentPage * pagination.pageSize,
-                      pagination.total,
-                    )}{" "}
-                    of {pagination.total} branches
-                  </p>
-                  {pagination.totalPages > 1 && (
+              {pagination.totalPages > 1 && (
+                <div className="p-6 border-t border-gray-200/50 dark:border-white/10">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-secondary">
+                      Showing{" "}
+                      {(pagination.currentPage - 1) * pagination.pageSize + 1}{" "}
+                      to{" "}
+                      {Math.min(
+                        pagination.currentPage * pagination.pageSize,
+                        pagination.total,
+                      )}{" "}
+                      of {pagination.total} branches
+                    </p>
                     <div className="flex items-center gap-2">
                       <Button
                         variant="ghost"
@@ -952,9 +1098,9 @@ const Branches = () => {
                         Next
                       </Button>
                     </div>
-                  )}
+                  </div>
                 </div>
-              </div>
+              )}
             </>
           )}
         </div>
@@ -994,7 +1140,7 @@ const Branches = () => {
               placeholder="e.g., SND, MKW, KBP"
               className="w-full px-4 py-2 bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-primary placeholder-secondary focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
-            {addForm.errors.branch_code && (
+            {addForm.touched.branch_code && addForm.errors.branch_code && (
               <p className="text-sm text-status-error mt-1">
                 {addForm.errors.branch_code}
               </p>
@@ -1018,10 +1164,93 @@ const Branches = () => {
               placeholder="e.g., Sindanglaya, Margahayu"
               className="w-full px-4 py-2 bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-primary placeholder-secondary focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
-            {addForm.errors.branch_name && (
+            {addForm.touched.branch_name && addForm.errors.branch_name && (
               <p className="text-sm text-status-error mt-1">
                 {addForm.errors.branch_name}
               </p>
+            )}
+          </div>
+
+          {/* Is Head Branch Toggle (NEW) */}
+          <div className="backdrop-blur-sm bg-white/20 dark:bg-white/5 p-4 rounded-xl border border-gray-200/30 dark:border-white/5">
+            <label className="flex items-center justify-between cursor-pointer">
+              <div className="flex items-center gap-3">
+                <Building2 className="w-5 h-5 text-primary" />
+                <div>
+                  <span className="text-sm font-semibold text-primary">
+                    Head Branch
+                  </span>
+                  <p className="text-xs text-secondary mt-0.5">
+                    Head branches can input and migrate stock
+                  </p>
+                </div>
+              </div>
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  name="is_head_branch"
+                  checked={addForm.values.is_head_branch}
+                  onChange={(e) => {
+                    addForm.handleChange({
+                      target: {
+                        name: "is_head_branch",
+                        value: e.target.checked,
+                        type: "checkbox",
+                        checked: e.target.checked,
+                      },
+                    });
+                  }}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+              </div>
+            </label>
+          </div>
+
+          {/* Regional Hub (NEW) */}
+          <div>
+            <label className="block text-sm font-medium text-primary mb-2">
+              Regional Hub <span className="text-status-error">*</span>
+            </label>
+            {addForm.values.is_head_branch ? (
+              <div>
+                <input
+                  type="text"
+                  value={addForm.values.branch_code || ""}
+                  disabled
+                  readOnly
+                  className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-white/10 rounded-xl text-secondary cursor-not-allowed"
+                />
+                <p className="text-xs text-secondary mt-1">
+                  Head branches use their own code as regional hub
+                </p>
+              </div>
+            ) : (
+              <div>
+                <select
+                  name="regional_hub"
+                  value={addForm.values.regional_hub}
+                  onChange={addForm.handleChange}
+                  onBlur={addForm.handleBlur}
+                  className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-white/10 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                  <option value="">Select regional hub...</option>
+                  {headBranches.map((hub) => (
+                    <option key={hub.id} value={hub.branch_code}>
+                      {hub.branch_name} ({hub.branch_code})
+                    </option>
+                  ))}
+                </select>
+                {addForm.touched.regional_hub &&
+                  addForm.errors.regional_hub && (
+                    <p className="text-sm text-status-error mt-1">
+                      {addForm.errors.regional_hub}
+                    </p>
+                  )}
+                <p className="text-xs text-secondary mt-1">
+                  Select the head branch this branch belongs to
+                </p>
+              </div>
             )}
           </div>
 
@@ -1030,12 +1259,22 @@ const Branches = () => {
             <AlertCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
             <div>
               <p className="text-sm text-primary font-medium mb-1">
-                Branch Information
+                Important Information
               </p>
-              <p className="text-sm text-secondary">
-                New branches are created as active by default. Branch code
-                cannot be changed after creation.
-              </p>
+              <ul className="text-sm text-secondary space-y-1">
+                <li>• New branches are created as active by default</li>
+                <li>
+                  • Branch code, type, and regional hub cannot be changed after
+                  creation
+                </li>
+                <li>
+                  • Head branches can input stock and migrate to other branches
+                  in their region
+                </li>
+                <li>
+                  • Regular branches receive stock from their regional hub
+                </li>
+              </ul>
             </div>
           </div>
 
@@ -1100,6 +1339,50 @@ const Branches = () => {
             </p>
           </div>
 
+          {/* Branch Type (Read-only) */}
+          {selectedBranch && (
+            <div>
+              <label className="block text-sm font-medium text-primary mb-2">
+                Branch Type
+              </label>
+              <div className="flex items-center gap-2">
+                {selectedBranch.is_head_branch ? (
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold text-white bg-gradient-to-br from-amber-500 to-orange-500 shadow-sm flex items-center gap-1">
+                    <Building2 className="w-3 h-3" />
+                    Head Branch
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold text-gray-600 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 shadow-sm flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    Regular Branch
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-secondary mt-1">
+                Branch type cannot be changed
+              </p>
+            </div>
+          )}
+
+          {/* Regional Hub (Read-only) */}
+          {selectedBranch && (
+            <div>
+              <label className="block text-sm font-medium text-primary mb-2">
+                Regional Hub
+              </label>
+              <input
+                type="text"
+                value={selectedBranch.regional_hub || ""}
+                readOnly
+                disabled
+                className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-white/10 rounded-xl text-secondary cursor-not-allowed"
+              />
+              <p className="text-xs text-secondary mt-1">
+                Regional hub cannot be changed
+              </p>
+            </div>
+          )}
+
           {/* Branch Name */}
           <div>
             <label className="block text-sm font-medium text-primary mb-2">
@@ -1114,7 +1397,7 @@ const Branches = () => {
               placeholder="e.g., Sindanglaya, Margahayu"
               className="w-full px-4 py-2 bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-primary placeholder-secondary focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
-            {editForm.errors.branch_name && (
+            {editForm.touched.branch_name && editForm.errors.branch_name && (
               <p className="text-sm text-status-error mt-1">
                 {editForm.errors.branch_name}
               </p>
