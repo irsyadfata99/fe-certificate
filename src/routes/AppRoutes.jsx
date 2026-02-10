@@ -57,7 +57,7 @@ const AppRoutes = () => {
         {/* Teacher Routes */}
         <Route element={<PrivateRoute allowedRoles={["teacher"]} />}>
           <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
-          <Route path="/teacher/print" element={<PrintCertificate />} />
+          <Route path="/print-certificate" element={<PrintCertificate />} />
           <Route path="/teacher/history" element={<HistoryPrint />} />
         </Route>
 

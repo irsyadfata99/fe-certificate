@@ -20,7 +20,6 @@ import { ENV } from "@config/env";
 export const useAuth = () => {
   const navigate = useNavigate();
 
-  // Get auth store state and actions
   const {
     user,
     isAuthenticated,
@@ -37,11 +36,6 @@ export const useAuth = () => {
   // LOGIN
   // =====================================================
 
-  /**
-   * Login user with credentials
-   * @param {Object} credentials - { username, password }
-   * @returns {Promise<Object>} User data and tokens
-   */
   const login = useCallback(
     async (credentials) => {
       setLoading(true);
@@ -52,10 +46,8 @@ export const useAuth = () => {
         if (response.success) {
           const { user: userData, accessToken, refreshToken } = response.data;
 
-          // Set auth state
           setAuth(userData, { accessToken, refreshToken });
 
-          // Navigate based on role
           const redirectPath =
             userData.role === USER_ROLES.ADMIN
               ? ROUTES.ADMIN_DASHBOARD
@@ -84,19 +76,11 @@ export const useAuth = () => {
   // LOGOUT
   // =====================================================
 
-  /**
-   * Logout user and clear session
-   */
   const logout = useCallback(() => {
     ENV.ENABLE_LOGGING && console.log("🚪 Logging out user:", user?.username);
 
-    // Cancel all pending requests
     cancelAllRequests("User logged out");
-
-    // Clear auth state
     storeLogout();
-
-    // Navigate to login
     navigate(ROUTES.LOGIN, { replace: true });
   }, [navigate, storeLogout, user?.username]);
 
@@ -104,10 +88,6 @@ export const useAuth = () => {
   // REFRESH USER PROFILE
   // =====================================================
 
-  /**
-   * Fetch and update current user profile
-   * @returns {Promise<Object>} Updated user data
-   */
   const refreshProfile = useCallback(async () => {
     try {
       const response = await getUserProfile();
@@ -128,18 +108,12 @@ export const useAuth = () => {
   // UPDATE USERNAME
   // =====================================================
 
-  /**
-   * Update current user's username
-   * @param {Object} data - { new_username, current_password }
-   * @returns {Promise<Object>} Updated user data
-   */
   const changeUsername = useCallback(
     async (data) => {
       try {
         const response = await updateUsername(data);
 
         if (response.success) {
-          // Update user in store
           updateUser(response.data);
           return response.data;
         }
@@ -157,11 +131,6 @@ export const useAuth = () => {
   // UPDATE PASSWORD
   // =====================================================
 
-  /**
-   * Update current user's password
-   * @param {Object} data - { current_password, new_password, confirm_password }
-   * @returns {Promise<Object>} Success response
-   */
   const changePassword = useCallback(async (data) => {
     try {
       const response = await updatePassword(data);
@@ -181,27 +150,10 @@ export const useAuth = () => {
   // ROLE CHECKERS
   // =====================================================
 
-  /**
-   * Check if current user has specific role
-   * @param {string} role - Role to check
-   * @returns {boolean}
-   */
-  const hasRole = useCallback(
-    (role) => {
-      return user?.role === role;
-    },
-    [user?.role],
-  );
+  const hasRole = useCallback((role) => user?.role === role, [user?.role]);
 
-  /**
-   * Check if current user has any of the specified roles
-   * @param {Array<string>} roles - Roles to check
-   * @returns {boolean}
-   */
   const hasAnyRole = useCallback(
-    (roles) => {
-      return roles.includes(user?.role);
-    },
+    (roles) => roles.includes(user?.role),
     [user?.role],
   );
 
@@ -209,37 +161,20 @@ export const useAuth = () => {
   // PERMISSION CHECKERS
   // =====================================================
 
-  /**
-   * Check if user can access admin features
-   * @returns {boolean}
-   */
-  const canAccessAdmin = useCallback(() => {
-    return isAdmin();
-  }, [isAdmin]);
-
-  /**
-   * Check if user can access teacher features
-   * @returns {boolean}
-   */
-  const canAccessTeacher = useCallback(() => {
-    return isTeacher();
-  }, [isTeacher]);
+  const canAccessAdmin = useCallback(() => isAdmin(), [isAdmin]);
+  const canAccessTeacher = useCallback(() => isTeacher(), [isTeacher]);
 
   // =====================================================
   // SESSION MANAGEMENT
   // =====================================================
 
-  /**
-   * Check if session is valid
-   * @returns {boolean}
-   */
-  const isSessionValid = useCallback(() => {
-    return isAuthenticated && user !== null;
-  }, [isAuthenticated, user]);
+  const isSessionValid = useCallback(
+    () => isAuthenticated && user !== null,
+    [isAuthenticated, user],
+  );
 
   /**
    * Get user's display name
-   * @returns {string}
    */
   const getUserDisplayName = useCallback(() => {
     if (!user) return "";
@@ -248,15 +183,18 @@ export const useAuth = () => {
 
   /**
    * Get user's role label
-   * @returns {string}
    */
   const getUserRoleLabel = useCallback(() => {
     if (!user) return "";
     return user.role === USER_ROLES.ADMIN ? "Administrator" : "Teacher";
   }, [user]);
 
+  // =====================================================
+  // BRANCH GETTERS
+  // =====================================================
+
   /**
-   * Get user's branch (for teachers)
+   * Get user's primary branch code (legacy single value)
    * @returns {string|null}
    */
   const getUserBranch = useCallback(() => {
@@ -264,12 +202,80 @@ export const useAuth = () => {
   }, [user]);
 
   /**
-   * Get user's division (for teachers)
+   * Get user's all branches as array of objects [{branch_id, branch_code, branch_name}]
+   * Falls back to single branch if array not available
+   * @returns {Array}
+   */
+  const getUserBranches = useCallback(() => {
+    if (
+      user?.branches &&
+      Array.isArray(user.branches) &&
+      user.branches.length > 0
+    ) {
+      return user.branches;
+    }
+    // Fallback: wrap legacy single branch into array format
+    if (user?.teacherBranch) {
+      return [
+        { branch_code: user.teacherBranch, branch_name: user.teacherBranch },
+      ];
+    }
+    return [];
+  }, [user]);
+
+  /**
+   * Get user's branch names as comma-separated string (for display)
+   * Uses branch_name from backend if available
+   * @returns {string}
+   */
+  const getUserBranchesDisplay = useCallback(() => {
+    const branches = getUserBranches();
+    if (branches.length === 0) return "N/A";
+    return branches.map((b) => b.branch_name || b.branch_code).join(", ");
+  }, [getUserBranches]);
+
+  // =====================================================
+  // DIVISION GETTERS
+  // =====================================================
+
+  /**
+   * Get user's primary division (legacy single value)
    * @returns {string|null}
    */
   const getUserDivision = useCallback(() => {
     return user?.teacherDivision || null;
   }, [user]);
+
+  /**
+   * Get user's all divisions as array of strings ["JK", "LK"]
+   * Falls back to single division if array not available
+   * @returns {Array}
+   */
+  const getUserDivisions = useCallback(() => {
+    if (
+      user?.divisions &&
+      Array.isArray(user.divisions) &&
+      user.divisions.length > 0
+    ) {
+      return user.divisions;
+    }
+    // Fallback: wrap legacy single division into array
+    if (user?.teacherDivision) {
+      return [user.teacherDivision];
+    }
+    return [];
+  }, [user]);
+
+  /**
+   * Get user's division names as comma-separated string (for display)
+   * @returns {string}
+   */
+  const getUserDivisionsDisplay = useCallback(() => {
+    const divisionNames = { JK: "Junior Koders", LK: "Little Koders" };
+    const divisions = getUserDivisions();
+    if (divisions.length === 0) return "N/A";
+    return divisions.map((d) => divisionNames[d] || d).join(", ");
+  }, [getUserDivisions]);
 
   // =====================================================
   // RETURN HOOK API
@@ -300,8 +306,16 @@ export const useAuth = () => {
     // User info getters
     getUserDisplayName,
     getUserRoleLabel,
-    getUserBranch,
-    getUserDivision,
+
+    // Branch getters
+    getUserBranch, // legacy: single branch code "SND"
+    getUserBranches, // array: [{branch_id, branch_code, branch_name}]
+    getUserBranchesDisplay, // display string: "Sunda, Mekarwangi"
+
+    // Division getters
+    getUserDivision, // legacy: single division code "JK"
+    getUserDivisions, // array: ["JK", "LK"]
+    getUserDivisionsDisplay, // display string: "Junior Koders, Little Koders"
   };
 };
 

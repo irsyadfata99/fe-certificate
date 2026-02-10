@@ -29,3 +29,5 @@ export * from "./logsApi";
 
 // Export
 export * from "./exportApi";
+
+export * from "./teacherStatsApi";

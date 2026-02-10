@@ -21,3 +21,11 @@ export { useLocalStorage, useSessionStorage } from "./useLocalStorage";
 export { useTeachers, default as useTeachersDefault } from "./useTeachers";
 export { useModules, default as useModulesDefault } from "./useModules";
 export { useStudents, default as useStudentsDefault } from "./useStudents";
+export {
+  useTeacherStats,
+  default as useTeacherStatsDefault,
+} from "./useTeacherStats";
+export {
+  useStockAlert,
+  default as useStockAlertDefault,
+} from "./useStockAlert";

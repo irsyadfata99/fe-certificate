@@ -14,17 +14,18 @@ import { useAuth } from "@hooks/useAuth";
 import Button from "@components/common/Button";
 import Spinner from "@components/common/Spinner";
 import { getPrintHistory } from "@api/printedCertApi";
-import {
-  formatNumber,
-  formatDate,
-  formatBranch,
-  formatDivision,
-} from "@utils/formatters";
+import { formatNumber, formatDate } from "@utils/formatters";
 import { DATE_FORMATS } from "@utils/constants";
 
 const TeacherDashboard = () => {
   const navigate = useNavigate();
-  const { getUserDisplayName, getUserBranch, getUserDivision } = useAuth();
+  const {
+    getUserDisplayName,
+    getUserBranchesDisplay,
+    getUserDivisionsDisplay,
+    getUserBranches,
+    getUserDivisions,
+  } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -143,9 +144,12 @@ const TeacherDashboard = () => {
   // MAIN RENDER
   // =====================================================
 
+  const branches = getUserBranches();
+  const divisions = getUserDivisions();
+
   return (
     <div className="space-y-4">
-      {/* Header - Glassmorphism */}
+      {/* Header */}
       <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg">
         <h1 className="text-2xl font-bold text-primary">
           Welcome, {getUserDisplayName()}! 👋
@@ -155,12 +159,13 @@ const TeacherDashboard = () => {
         </p>
       </div>
 
-      {/* Teacher Info Card - Glassmorphism */}
+      {/* Teacher Info Card */}
       <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg">
         <h2 className="text-lg font-semibold text-primary mb-4">
           Your Information
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Teacher Name */}
           <div className="flex items-start gap-3">
             <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 shadow-md">
               <User className="w-5 h-5 text-white" />
@@ -173,33 +178,71 @@ const TeacherDashboard = () => {
             </div>
           </div>
 
+          {/* Branch - now shows ALL branches from array */}
           <div className="flex items-start gap-3">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 shadow-md">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 shadow-md flex-shrink-0">
               <MapPin className="w-5 h-5 text-white" />
             </div>
-            <div>
-              <p className="text-sm text-secondary">Branch</p>
-              <p className="text-base font-semibold text-primary mt-1">
-                {formatBranch(getUserBranch() || "N/A")}
+            <div className="min-w-0">
+              <p className="text-sm text-secondary">
+                {branches.length > 1 ? "Branches" : "Branch"}
               </p>
+              {branches.length > 1 ? (
+                // Multi-branch: tampilkan sebagai badge list
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {branches.map((b) => (
+                    <span
+                      key={b.branch_code}
+                      className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/30"
+                    >
+                      {b.branch_name || b.branch_code}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-base font-semibold text-primary mt-1">
+                  {getUserBranchesDisplay()}
+                </p>
+              )}
             </div>
           </div>
 
+          {/* Division - now shows ALL divisions from array */}
           <div className="flex items-start gap-3">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 shadow-md">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 shadow-md flex-shrink-0">
               <BookOpen className="w-5 h-5 text-white" />
             </div>
-            <div>
-              <p className="text-sm text-secondary">Division</p>
-              <p className="text-base font-semibold text-primary mt-1">
-                {formatDivision(getUserDivision() || "N/A")}
+            <div className="min-w-0">
+              <p className="text-sm text-secondary">
+                {divisions.length > 1 ? "Divisions" : "Division"}
               </p>
+              {divisions.length > 1 ? (
+                // Multi-division: tampilkan sebagai badge list
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {divisions.map((d) => (
+                    <span
+                      key={d}
+                      className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/30"
+                    >
+                      {d === "JK"
+                        ? "Junior Koders"
+                        : d === "LK"
+                          ? "Little Koders"
+                          : d}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-base font-semibold text-primary mt-1">
+                  {getUserDivisionsDisplay()}
+                </p>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Stats Grid - Glassmorphism */}
+      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {statsCards.map((stat, index) => {
           const Icon = stat.icon;
@@ -231,7 +274,7 @@ const TeacherDashboard = () => {
         })}
       </div>
 
-      {/* Recent Print History - Glassmorphism */}
+      {/* Recent Print History */}
       <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg">
         <h2 className="text-lg font-semibold text-primary mb-4">
           Recent Print History

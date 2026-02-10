@@ -51,9 +51,9 @@ export const capitalize = (str) => {
  */
 export const formatBranch = (branch) => {
   const branchNames = {
-    SND: "Sindanglaya",
-    MKW: "Margahayu",
-    KBP: "Kopo",
+    SND: "Sunda",
+    MKW: "Mekarwangi",
+    KBP: "Kota Baru Parahyangan",
   };
   return branchNames[branch] || branch;
 };
@@ -148,12 +148,12 @@ export const formatBranchBadges = (branches) => {
     SND: {
       label: "SND",
       color: "from-green-500 to-emerald-500",
-      name: "Sindanglaya",
+      name: "Sunda",
     },
     MKW: {
       label: "MKW",
       color: "from-purple-500 to-pink-500",
-      name: "Margahayu",
+      name: "Mekarwangi",
     },
     KBP: { label: "KBP", color: "from-orange-500 to-red-500", name: "Kopo" },
   };

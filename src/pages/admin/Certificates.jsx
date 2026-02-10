@@ -1101,7 +1101,7 @@ const Certificates = () => {
         </div>
       )}
 
-      {/* ADD & MIGRATE MODALS - Same as before, omitted for brevity */}
+      {/* ADD MODAL */}
       <Modal
         isOpen={showAddModal}
         onClose={() => {
@@ -1216,6 +1216,7 @@ const Certificates = () => {
         </form>
       </Modal>
 
+      {/* MIGRATE MODAL - WITH COMPACT INLINE BRANCH SELECTION */}
       <Modal
         isOpen={showMigrateModal}
         onClose={() => {
@@ -1280,9 +1281,7 @@ const Certificates = () => {
                 </p>
               </div>
             ) : (
-              <div
-                className={`grid gap-3 ${destinationBranches.length === 2 ? "grid-cols-2" : "grid-cols-1"}`}
-              >
+              <div className="flex flex-wrap gap-2">
                 {destinationBranches.map((branch) => {
                   const isSelected =
                     migrateForm.values.destination_branch ===
@@ -1297,25 +1296,24 @@ const Certificates = () => {
                           branch.branch_code,
                         )
                       }
-                      className={`p-4 rounded-xl border-2 transition-all ${
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
                         isSelected
-                          ? `${getBranchBorderColor(branch.branch_code)} ${getBranchBgColor(branch.branch_code)}`
-                          : "border-gray-200 dark:border-white/10 hover:border-primary/50"
+                          ? `${getBranchBorderColor(branch.branch_code)} ${getBranchBgColor(branch.branch_code)} ${getBranchTextColor(branch.branch_code)}`
+                          : "border-gray-200 dark:border-white/10 text-secondary hover:border-primary/50 hover:text-primary"
                       }`}
                     >
-                      <div className="flex items-center gap-2 mb-2">
-                        <span
-                          className={`w-3 h-3 rounded-full bg-gradient-to-br ${getBranchColor(branch.branch_code)}`}
-                        ></span>
-                        <span
-                          className={`font-semibold ${isSelected ? getBranchTextColor(branch.branch_code) : "text-primary"}`}
-                        >
-                          {branch.branch_code}
-                        </span>
-                      </div>
-                      <p className="text-xs text-secondary">
-                        {branch.branch_name}
-                      </p>
+                      <span
+                        className={`w-2 h-2 rounded-full bg-gradient-to-br flex-shrink-0 ${getBranchColor(branch.branch_code)}`}
+                      />
+                      <span>{branch.branch_code}</span>
+                      <span
+                        className={`text-xs ${isSelected ? "opacity-80" : "opacity-50"}`}
+                      >
+                        · {branch.branch_name}
+                      </span>
+                      {isSelected && (
+                        <Check className="w-3.5 h-3.5 ml-0.5 flex-shrink-0" />
+                      )}
                     </button>
                   );
                 })}
