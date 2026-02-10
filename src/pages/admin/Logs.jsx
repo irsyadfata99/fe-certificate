@@ -109,7 +109,7 @@ const Logs = () => {
   };
 
   // =====================================================
-  // DATA FETCHING
+  // DATA FETCHING - FIXED PAGINATION HANDLING
   // =====================================================
 
   const fetchLogs = useCallback(async () => {
@@ -143,19 +143,29 @@ const Logs = () => {
         params.to_date = filterToDate;
       }
 
-      // NEW: Add regional hub filter if selected
+      // Add regional hub filter if selected
       if (selectedRegionalHub) {
         params.regional_hub = selectedRegionalHub;
       }
 
       const response = await getLogs(params);
 
+      console.log("=== LOGS API RESPONSE ===");
+      console.log("Full response:", response);
+      console.log("Response data:", response.data);
+      console.log("Response pagination:", response.pagination);
+
       if (response.success) {
         setLogs(response.data || []);
 
+        // FIXED: Same pattern as Modules.jsx - handle pagination properly
         const paginationData = response.pagination || {};
         const totalFromBackend = paginationData.total || 0;
         const totalPagesFromBackend = paginationData.totalPages || Math.ceil(totalFromBackend / pagination.pageSize) || 1;
+
+        console.log("Pagination data:", paginationData);
+        console.log("Total from backend:", totalFromBackend);
+        console.log("Total pages:", totalPagesFromBackend);
 
         setPagination((prev) => ({
           ...prev,
