@@ -1,46 +1,23 @@
-import { useEffect, useState, useCallback } from "react";
-import {
-  Plus,
-  Search,
-  Trash2,
-  FileText,
-  AlertCircle,
-  ChevronLeft,
-  ChevronRight,
-  ChevronUp,
-  ChevronDown,
-  Calendar,
-  X,
-  Check,
-  ArrowRightLeft,
-  Building2,
-} from "lucide-react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { Plus, Search, Trash2, FileText, AlertCircle, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Calendar, X, Check, ArrowRightLeft, Building2 } from "lucide-react";
 import Button from "@components/common/Button";
 import Spinner from "@components/common/Spinner";
 import Modal from "@components/common/Modal";
 import Input from "@components/common/Input";
 import { useForm } from "@hooks/useForm";
 import { useDebounce } from "@hooks/useDebounce";
-import { useHeadBranches, useBranchesByHub } from "@hooks/useBranches";
-import {
-  getCertificates,
-  createCertificate,
-  clearAllCertificates,
-  migrateCertificate,
-} from "@api/certificateApi";
+import { useHeadBranches, useBranches } from "@hooks/useBranches";
+import { getCertificates, createCertificate, clearAllCertificates, migrateCertificate } from "@api/certificateApi";
 import { formatNumber, formatDate } from "@utils/formatters";
 import { DATE_FORMATS } from "@utils/constants";
 import { toast } from "react-hot-toast";
 
 const Certificates = () => {
   // =====================================================
-  // HOOKS - HEAD BRANCHES
+  // HOOKS - HEAD BRANCHES & ALL BRANCHES
   // =====================================================
-  const {
-    headBranches,
-    loading: headBranchesLoading,
-    error: headBranchesError,
-  } = useHeadBranches();
+  const { headBranches, loading: headBranchesLoading, error: headBranchesError } = useHeadBranches();
+  const { branches: allBranches, loading: allBranchesLoading, error: allBranchesError } = useBranches();
 
   // =====================================================
   // STATE MANAGEMENT
@@ -84,20 +61,24 @@ const Certificates = () => {
   }, [headBranches, selectedHeadBranch]);
 
   // =====================================================
-  // FETCH DESTINATION BRANCHES (same regional hub)
+  // GET DESTINATION BRANCHES (same regional hub)
+  // FIXED: Filter by regional_hub instead of branch_code
   // =====================================================
-  const {
-    branches: destinationBranches,
-    loading: destinationLoading,
-    error: destinationError,
-  } = useBranchesByHub(selectedHeadBranch?.branch_code);
+  const destinationBranches = useMemo(() => {
+    if (!selectedHeadBranch || !allBranches.length) return [];
 
-  // Filter out the head branch itself from destination branches
-  const filteredDestinationBranches = destinationBranches.filter(
-    (branch) =>
-      !branch.is_head_branch &&
-      branch.branch_code !== selectedHeadBranch?.branch_code,
-  );
+    // For head branch like SND:
+    // - SND has branch_code = "SND" and regional_hub = "SND"
+    // - MKW has regional_hub = "SND" (sub-branch of SND)
+    // - KBP has regional_hub = "SND" (sub-branch of SND)
+
+    // Filter branches that belong to the same regional hub
+    return allBranches.filter((branch) => {
+      // Include branches where regional_hub matches the selected head branch code
+      // Exclude the head branch itself (can't migrate to self)
+      return branch.regional_hub === selectedHeadBranch.branch_code && branch.branch_code !== selectedHeadBranch.branch_code && !branch.is_head_branch && branch.is_active;
+    });
+  }, [selectedHeadBranch, allBranches]);
 
   // =====================================================
   // FORM VALIDATION - ADD CERTIFICATE (HEAD BRANCH ONLY)
@@ -112,8 +93,7 @@ const Certificates = () => {
       maxLength: 50,
       maxLengthMessage: "Batch ID must not exceed 50 characters",
       pattern: /^[A-Za-z0-9_-]+$/,
-      patternMessage:
-        "Batch ID can only contain letters, numbers, dashes, and underscores",
+      patternMessage: "Batch ID can only contain letters, numbers, dashes, and underscores",
     },
   };
 
@@ -158,7 +138,7 @@ const Certificates = () => {
   );
 
   // =====================================================
-  // DATA FETCHING
+  // DATA FETCHING (WITH REGIONAL HUB FILTER)
   // =====================================================
 
   const fetchCertificates = useCallback(async () => {
@@ -178,19 +158,20 @@ const Certificates = () => {
         params.search = debouncedSearch.trim();
       }
 
+      // NEW: Add regional_hub filter - CRITICAL FOR FILTERING
+      if (selectedHeadBranch?.branch_code) {
+        params.regional_hub = selectedHeadBranch.branch_code;
+      }
+
       const response = await getCertificates(params);
 
       if (response.success) {
         let fetchedCertificates = response.data || [];
 
         // Client-side sorting
-        fetchedCertificates = sortCertificates(
-          fetchedCertificates,
-          sortConfig.key,
-          sortConfig.direction,
-        );
+        fetchedCertificates = sortCertificates(fetchedCertificates, sortConfig.key, sortConfig.direction);
 
-        // Calculate cumulative totals
+        // Calculate cumulative totals (now already filtered by backend)
         fetchedCertificates = calculateCumulativeTotals(fetchedCertificates);
 
         setCertificates(fetchedCertificates);
@@ -198,10 +179,7 @@ const Certificates = () => {
         // Handle pagination from backend
         const paginationData = response.meta?.pagination || {};
         const totalFromBackend = paginationData.total || 0;
-        const totalPagesFromBackend =
-          paginationData.totalPages ||
-          Math.ceil(totalFromBackend / pagination.pageSize) ||
-          1;
+        const totalPagesFromBackend = paginationData.totalPages || Math.ceil(totalFromBackend / pagination.pageSize) || 1;
 
         setPagination((prev) => ({
           ...prev,
@@ -221,6 +199,7 @@ const Certificates = () => {
     debouncedSearch,
     sortConfig.key,
     sortConfig.direction,
+    selectedHeadBranch, // NEW: Refetch when head branch changes
   ]);
 
   useEffect(() => {
@@ -228,30 +207,29 @@ const Certificates = () => {
   }, [fetchCertificates]);
 
   // =====================================================
-  // CALCULATE CUMULATIVE TOTALS PER REGIONAL HUB
+  // RESET TO PAGE 1 WHEN HEAD BRANCH CHANGES
+  // =====================================================
+  useEffect(() => {
+    if (selectedHeadBranch) {
+      setPagination((prev) => ({ ...prev, currentPage: 1 }));
+    }
+  }, [selectedHeadBranch]);
+
+  // =====================================================
+  // CALCULATE CUMULATIVE TOTALS (ALREADY FILTERED BY BACKEND)
   // =====================================================
 
   const calculateCumulativeTotals = (certificateList) => {
-    if (!selectedHeadBranch) return certificateList;
-
-    // Get branches in current regional hub
-    const regionalHubCode = selectedHeadBranch.branch_code;
-    const hubBranchCodes = orderedBranches.map((b) => b.branch_code);
-
     let cumulativeCerts = 0;
     let cumulativeMedals = 0;
 
     return certificateList.map((cert) => {
       const stockByBranch = cert.stock_by_branch || [];
 
-      // Calculate total ONLY for branches in current regional hub
-      const batchCerts = stockByBranch
-        .filter((stock) => hubBranchCodes.includes(stock.branch_code))
-        .reduce((sum, stock) => sum + (stock.certificates || 0), 0);
+      // Calculate total for this batch
+      const batchCerts = stockByBranch.reduce((sum, stock) => sum + (stock.certificates || 0), 0);
 
-      const batchMedals = stockByBranch
-        .filter((stock) => hubBranchCodes.includes(stock.branch_code))
-        .reduce((sum, stock) => sum + (stock.medals || 0), 0);
+      const batchMedals = stockByBranch.reduce((sum, stock) => sum + (stock.medals || 0), 0);
 
       // Add to cumulative
       cumulativeCerts += batchCerts;
@@ -311,11 +289,7 @@ const Certificates = () => {
     if (sortConfig.key !== columnKey) {
       return <ChevronUp className="w-4 h-4 opacity-30" />;
     }
-    return sortConfig.direction === "asc" ? (
-      <ChevronUp className="w-4 h-4" />
-    ) : (
-      <ChevronDown className="w-4 h-4" />
-    );
+    return sortConfig.direction === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />;
   };
 
   // =====================================================
@@ -363,40 +337,30 @@ const Certificates = () => {
       const medalAmount = parseInt(values.medal_amount) || 0;
 
       if (certAmount === 0 && medalAmount === 0) {
-        toast.error(
-          "At least one certificate or medal amount must be greater than 0",
-        );
+        toast.error("At least one certificate or medal amount must be greater than 0");
         return;
       }
 
       // Find the certificate to validate stock
-      const cert = certificates.find(
-        (c) => c.certificate_id === values.certificate_id,
-      );
+      const cert = certificates.find((c) => c.certificate_id === values.certificate_id);
       if (!cert) {
         toast.error("Certificate batch not found");
         return;
       }
 
       // Get head branch stock
-      const headStock = cert.stock_by_branch?.find(
-        (s) => s.branch_code === selectedHeadBranch?.branch_code,
-      );
+      const headStock = cert.stock_by_branch?.find((s) => s.branch_code === selectedHeadBranch?.branch_code);
       const availableCerts = headStock?.certificates || 0;
       const availableMedals = headStock?.medals || 0;
 
       // Validate stock
       if (certAmount > availableCerts) {
-        toast.error(
-          `Insufficient ${selectedHeadBranch?.branch_name} certificates. Available: ${availableCerts}`,
-        );
+        toast.error(`Insufficient ${selectedHeadBranch?.branch_name} certificates. Available: ${availableCerts}`);
         return;
       }
 
       if (medalAmount > availableMedals) {
-        toast.error(
-          `Insufficient ${selectedHeadBranch?.branch_name} medals. Available: ${availableMedals}`,
-        );
+        toast.error(`Insufficient ${selectedHeadBranch?.branch_name} medals. Available: ${availableMedals}`);
         return;
       }
 
@@ -422,25 +386,15 @@ const Certificates = () => {
   // =====================================================
 
   const handleClearAll = async () => {
-    if (
-      !window.confirm(
-        "Are you sure you want to clear ALL certificate batches?\n\nThis action CANNOT be undone!",
-      )
-    ) {
+    if (!window.confirm("Are you sure you want to clear ALL certificate batches?\n\nThis action CANNOT be undone!")) {
       return;
     }
 
-    if (
-      !window.confirm(
-        "FINAL WARNING: This will permanently delete ALL certificate records.\n\nType 'DELETE' in the next prompt to confirm.",
-      )
-    ) {
+    if (!window.confirm("FINAL WARNING: This will permanently delete ALL certificate records.\n\nType 'DELETE' in the next prompt to confirm.")) {
       return;
     }
 
-    const confirmation = window.prompt(
-      'Type "DELETE" (in capital letters) to confirm:',
-    );
+    const confirmation = window.prompt('Type "DELETE" (in capital letters) to confirm:');
 
     if (confirmation !== "DELETE") {
       toast.error("Clear all cancelled - confirmation text did not match");
@@ -486,20 +440,20 @@ const Certificates = () => {
   const handleHeadBranchChange = (branchCode) => {
     const branch = headBranches.find((b) => b.branch_code === branchCode);
     setSelectedHeadBranch(branch);
+    // Reset to page 1 when changing head branch
+    setPagination((prev) => ({ ...prev, currentPage: 1 }));
   };
 
   // =====================================================
-  // REORDER BRANCHES: Head branch first, then others
+  // REORDER BRANCHES: HEAD BRANCH + SUB-BRANCHES (DYNAMIC)
   // =====================================================
   const getOrderedBranches = () => {
-    if (!selectedHeadBranch) return [];
+    if (!selectedHeadBranch || !allBranches.length) return [];
 
-    // Get all branches in this regional hub
-    const regionalBranches = destinationBranches.filter(
-      (b) => b.regional_hub === selectedHeadBranch.branch_code,
-    );
+    // Get all branches in this regional hub (head + subs)
+    const regionalBranches = allBranches.filter((branch) => branch.regional_hub === selectedHeadBranch.branch_code && branch.is_active);
 
-    // Put head branch first, then regular branches
+    // Sort: head branch first, then sub-branches alphabetically
     return regionalBranches.sort((a, b) => {
       if (a.is_head_branch && !b.is_head_branch) return -1;
       if (!a.is_head_branch && b.is_head_branch) return 1;
@@ -510,27 +464,124 @@ const Certificates = () => {
   const orderedBranches = getOrderedBranches();
 
   // =====================================================
+  // DYNAMIC BRANCH COLOR GENERATOR
+  // =====================================================
+
+  const generateBranchColors = useMemo(() => {
+    const predefinedColors = {
+      SND: {
+        gradient: "from-green-500 to-emerald-500",
+        text: "text-green-600 dark:text-green-400",
+        border: "border-green-500",
+        bg: "bg-green-500/10",
+      },
+      BSD: {
+        gradient: "from-blue-500 to-cyan-500",
+        text: "text-blue-600 dark:text-blue-400",
+        border: "border-blue-500",
+        bg: "bg-blue-500/10",
+      },
+      PIK: {
+        gradient: "from-purple-500 to-pink-500",
+        text: "text-purple-600 dark:text-purple-400",
+        border: "border-purple-500",
+        bg: "bg-purple-500/10",
+      },
+      MKW: {
+        gradient: "from-orange-500 to-red-500",
+        text: "text-orange-600 dark:text-orange-400",
+        border: "border-orange-500",
+        bg: "bg-orange-500/10",
+      },
+      KBP: {
+        gradient: "from-yellow-500 to-amber-500",
+        text: "text-yellow-600 dark:text-yellow-400",
+        border: "border-yellow-500",
+        bg: "bg-yellow-500/10",
+      },
+    };
+
+    // Additional color schemes for future branches
+    const additionalColors = [
+      {
+        gradient: "from-indigo-500 to-violet-500",
+        text: "text-indigo-600 dark:text-indigo-400",
+        border: "border-indigo-500",
+        bg: "bg-indigo-500/10",
+      },
+      {
+        gradient: "from-rose-500 to-pink-500",
+        text: "text-rose-600 dark:text-rose-400",
+        border: "border-rose-500",
+        bg: "bg-rose-500/10",
+      },
+      {
+        gradient: "from-teal-500 to-cyan-500",
+        text: "text-teal-600 dark:text-teal-400",
+        border: "border-teal-500",
+        bg: "bg-teal-500/10",
+      },
+      {
+        gradient: "from-lime-500 to-green-500",
+        text: "text-lime-600 dark:text-lime-400",
+        border: "border-lime-500",
+        bg: "bg-lime-500/10",
+      },
+      {
+        gradient: "from-fuchsia-500 to-purple-500",
+        text: "text-fuchsia-600 dark:text-fuchsia-400",
+        border: "border-fuchsia-500",
+        bg: "bg-fuchsia-500/10",
+      },
+    ];
+
+    const colorMap = {};
+    let additionalColorIndex = 0;
+
+    // Generate colors for all branches (not just head branches)
+    allBranches.forEach((branch) => {
+      if (predefinedColors[branch.branch_code]) {
+        colorMap[branch.branch_code] = predefinedColors[branch.branch_code];
+      } else {
+        colorMap[branch.branch_code] = additionalColors[additionalColorIndex % additionalColors.length];
+        additionalColorIndex++;
+      }
+    });
+
+    return colorMap;
+  }, [allBranches]);
+
+  // Helper functions for branch colors
+  const getBranchColor = (branchCode) => {
+    return generateBranchColors[branchCode]?.gradient || "from-gray-500 to-slate-500";
+  };
+
+  const getBranchTextColor = (branchCode) => {
+    return generateBranchColors[branchCode]?.text || "text-gray-600 dark:text-gray-400";
+  };
+
+  const getBranchBorderColor = (branchCode) => {
+    return generateBranchColors[branchCode]?.border || "border-gray-500";
+  };
+
+  const getBranchBgColor = (branchCode) => {
+    return generateBranchColors[branchCode]?.bg || "bg-gray-500/10";
+  };
+
+  // =====================================================
   // COMPUTED VALUES
   // =====================================================
 
   const getBatchTotal = (cert) => {
     const stockByBranch = cert.stock_by_branch || [];
-    const totalCert = stockByBranch.reduce(
-      (sum, stock) => sum + (stock.certificates || 0),
-      0,
-    );
-    const totalMedal = stockByBranch.reduce(
-      (sum, stock) => sum + (stock.medals || 0),
-      0,
-    );
+    const totalCert = stockByBranch.reduce((sum, stock) => sum + (stock.certificates || 0), 0);
+    const totalMedal = stockByBranch.reduce((sum, stock) => sum + (stock.medals || 0), 0);
     return { certificates: totalCert, medals: totalMedal };
   };
 
   // Get stock for specific branch
   const getBranchStock = (cert, branchCode) => {
-    const stock = cert.stock_by_branch?.find(
-      (s) => s.branch_code === branchCode,
-    );
+    const stock = cert.stock_by_branch?.find((s) => s.branch_code === branchCode);
     return {
       certificates: stock?.certificates || 0,
       medals: stock?.medals || 0,
@@ -539,66 +590,15 @@ const Certificates = () => {
 
   // Get available batches for migration (those with head branch stock)
   const availableBatchesForMigration = certificates.filter((cert) => {
-    const headStock = cert.stock_by_branch?.find(
-      (s) => s.branch_code === selectedHeadBranch?.branch_code,
-    );
+    const headStock = cert.stock_by_branch?.find((s) => s.branch_code === selectedHeadBranch?.branch_code);
     return (headStock?.certificates || 0) > 0 || (headStock?.medals || 0) > 0;
   });
-
-  // Branch color mapping (for consistent colors)
-  const getBranchColor = (branchCode) => {
-    const colors = {
-      SND: "from-green-500 to-emerald-500",
-      MKW: "from-purple-500 to-pink-500",
-      KBP: "from-orange-500 to-red-500",
-      // Add more colors for additional branches
-      default: "from-blue-500 to-cyan-500",
-    };
-    return colors[branchCode] || colors.default;
-  };
-
-  // Get branch text color for selected state
-  const getBranchTextColor = (branchCode) => {
-    const colors = {
-      SND: "text-green-600 dark:text-green-400",
-      MKW: "text-purple-600 dark:text-purple-400",
-      KBP: "text-orange-600 dark:text-orange-400",
-      default: "text-blue-600 dark:text-blue-400",
-    };
-    return colors[branchCode] || colors.default;
-  };
-
-  // Get branch border color for selected state
-  const getBranchBorderColor = (branchCode) => {
-    const colors = {
-      SND: "border-green-500",
-      MKW: "border-purple-500",
-      KBP: "border-orange-500",
-      default: "border-blue-500",
-    };
-    return colors[branchCode] || colors.default;
-  };
-
-  // Get branch background color for selected state
-  const getBranchBgColor = (branchCode) => {
-    const colors = {
-      SND: "bg-green-500/10",
-      MKW: "bg-purple-500/10",
-      KBP: "bg-orange-500/10",
-      default: "bg-blue-500/10",
-    };
-    return colors[branchCode] || colors.default;
-  };
 
   // =====================================================
   // LOADING STATE
   // =====================================================
 
-  if (
-    (loading && certificates.length === 0) ||
-    headBranchesLoading ||
-    destinationLoading
-  ) {
+  if ((loading && certificates.length === 0) || headBranchesLoading || allBranchesLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Spinner size="large" />
@@ -610,23 +610,15 @@ const Certificates = () => {
   // ERROR STATE
   // =====================================================
 
-  if (
-    (error && certificates.length === 0) ||
-    headBranchesError ||
-    destinationError
-  ) {
+  if ((error && certificates.length === 0) || headBranchesError || allBranchesError) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center max-w-md">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-status-error/10 rounded-full mb-4">
             <AlertCircle className="w-8 h-8 text-status-error" />
           </div>
-          <h3 className="text-lg font-semibold text-primary mb-2">
-            Failed to Load Data
-          </h3>
-          <p className="text-secondary mb-4">
-            {error || headBranchesError || destinationError}
-          </p>
+          <h3 className="text-lg font-semibold text-primary mb-2">Failed to Load Data</h3>
+          <p className="text-secondary mb-4">{error || headBranchesError || allBranchesError}</p>
           <Button variant="primary" onClick={fetchCertificates} size="medium">
             Retry
           </Button>
@@ -645,32 +637,14 @@ const Certificates = () => {
       <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-primary">
-              Certificate Management
-            </h1>
-            <p className="text-secondary mt-1">
-              Manage certificate batches and stock distribution across branches
-            </p>
+            <h1 className="text-2xl font-bold text-primary">Certificate Management</h1>
+            <p className="text-secondary mt-1">Manage certificate batches and stock distribution across branches</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              size="medium"
-              icon={<ArrowRightLeft className="w-4 h-4" />}
-              onClick={() => setShowMigrateModal(true)}
-              disabled={
-                !selectedHeadBranch || availableBatchesForMigration.length === 0
-              }
-            >
+            <Button variant="secondary" size="medium" icon={<ArrowRightLeft className="w-4 h-4" />} onClick={() => setShowMigrateModal(true)} disabled={!selectedHeadBranch || availableBatchesForMigration.length === 0}>
               Migrate Stock
             </Button>
-            <Button
-              variant="primary"
-              size="medium"
-              icon={<Plus className="w-4 h-4" />}
-              onClick={() => setShowAddModal(true)}
-              disabled={!selectedHeadBranch}
-            >
+            <Button variant="primary" size="medium" icon={<Plus className="w-4 h-4" />} onClick={() => setShowAddModal(true)} disabled={!selectedHeadBranch}>
               Add Batch
             </Button>
           </div>
@@ -683,11 +657,9 @@ const Certificates = () => {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <Building2 className="w-5 h-5 text-primary" />
-              <label className="text-sm font-semibold text-primary">
-                Operating Branch:
-              </label>
+              <label className="text-sm font-semibold text-primary">Operating Branch:</label>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               {headBranches.map((branch) => (
                 <button
                   key={branch.branch_code}
@@ -699,20 +671,14 @@ const Certificates = () => {
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <span
-                      className={`w-3 h-3 rounded-full bg-gradient-to-br ${getBranchColor(branch.branch_code)}`}
-                    ></span>
+                    <span className={`w-3 h-3 rounded-full bg-gradient-to-br ${getBranchColor(branch.branch_code)}`}></span>
                     <span className="font-semibold">{branch.branch_code}</span>
                   </div>
                 </button>
               ))}
             </div>
           </div>
-          {selectedHeadBranch && (
-            <p className="text-xs text-secondary mt-2 ml-7">
-              Managing stock for {selectedHeadBranch.branch_name} regional hub
-            </p>
-          )}
+          {selectedHeadBranch && <p className="text-xs text-secondary mt-2 ml-7">Managing stock for {selectedHeadBranch.branch_name} regional hub</p>}
         </div>
       )}
 
@@ -728,10 +694,7 @@ const Certificates = () => {
               prefixIcon={<Search className="w-5 h-5" />}
               suffixIcon={
                 searchTerm ? (
-                  <button
-                    onClick={handleClearSearch}
-                    className="text-secondary hover:text-primary transition-colors"
-                  >
+                  <button onClick={handleClearSearch} className="text-secondary hover:text-primary transition-colors">
                     <X className="w-5 h-5" />
                   </button>
                 ) : null
@@ -749,21 +712,9 @@ const Certificates = () => {
               <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-4">
                 <FileText className="w-8 h-8 text-primary" />
               </div>
-              <h3 className="text-lg font-semibold text-primary mb-2">
-                No Certificate Batches Found
-              </h3>
-              <p className="text-secondary text-center mb-6 max-w-md">
-                {searchTerm
-                  ? "Try adjusting your search terms"
-                  : "Start by creating your first certificate batch"}
-              </p>
-              <Button
-                variant="primary"
-                size="medium"
-                icon={<Plus className="w-4 h-4" />}
-                onClick={() => setShowAddModal(true)}
-                disabled={!selectedHeadBranch}
-              >
+              <h3 className="text-lg font-semibold text-primary mb-2">No Certificate Batches Found</h3>
+              <p className="text-secondary text-center mb-6 max-w-md">{searchTerm ? "Try adjusting your search terms" : `No batches found for ${selectedHeadBranch?.branch_name} regional hub`}</p>
+              <Button variant="primary" size="medium" icon={<Plus className="w-4 h-4" />} onClick={() => setShowAddModal(true)} disabled={!selectedHeadBranch}>
                 Add First Batch
               </Button>
             </div>
@@ -773,41 +724,28 @@ const Certificates = () => {
                 <thead className="bg-white/20 dark:bg-white/5 border-b border-gray-200/30 dark:border-white/5">
                   <tr>
                     {/* Batch ID */}
-                    <th
-                      onClick={() => handleSort("certificate_id")}
-                      className="px-6 py-4 text-left text-sm font-semibold text-primary uppercase cursor-pointer select-none hover:bg-white/30 dark:hover:bg-white/10 transition-colors"
-                    >
+                    <th onClick={() => handleSort("certificate_id")} className="px-6 py-4 text-left text-sm font-semibold text-primary uppercase cursor-pointer select-none hover:bg-white/30 dark:hover:bg-white/10 transition-colors">
                       <div className="flex items-center gap-2">
                         Batch ID
                         <SortIcon columnKey="certificate_id" />
                       </div>
                     </th>
 
-                    {/* Dynamic Branch Columns */}
+                    {/* Dynamic Branch Columns - HEAD BRANCH + SUB-BRANCHES */}
                     {orderedBranches.map((branch) => (
-                      <th
-                        key={branch.branch_code}
-                        className="px-6 py-4 text-center text-sm font-semibold text-primary uppercase"
-                      >
+                      <th key={branch.branch_code} className="px-6 py-4 text-center text-sm font-semibold text-primary uppercase">
                         <div className="flex items-center justify-center gap-2">
-                          <span
-                            className={`w-3 h-3 rounded-full bg-gradient-to-br ${getBranchColor(branch.branch_code)}`}
-                          ></span>
+                          <span className={`w-3 h-3 rounded-full bg-gradient-to-br ${getBranchColor(branch.branch_code)}`}></span>
                           {branch.branch_code}
                         </div>
                       </th>
                     ))}
 
                     {/* Total Batch */}
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-primary uppercase">
-                      Total Batch
-                    </th>
+                    <th className="px-6 py-4 text-center text-sm font-semibold text-primary uppercase">Total Batch</th>
 
                     {/* Created */}
-                    <th
-                      onClick={() => handleSort("created_at")}
-                      className="px-6 py-4 text-left text-sm font-semibold text-primary uppercase cursor-pointer select-none hover:bg-white/30 dark:hover:bg-white/10 transition-colors"
-                    >
+                    <th onClick={() => handleSort("created_at")} className="px-6 py-4 text-left text-sm font-semibold text-primary uppercase cursor-pointer select-none hover:bg-white/30 dark:hover:bg-white/10 transition-colors">
                       <div className="flex items-center gap-2">
                         Created
                         <SortIcon columnKey="created_at" />
@@ -818,37 +756,25 @@ const Certificates = () => {
                 <tbody className="divide-y divide-gray-200/30 dark:divide-white/5">
                   {certificates.map((cert) => {
                     return (
-                      <tr
-                        key={cert.id}
-                        className="hover:bg-white/30 dark:hover:bg-white/10 transition-colors"
-                      >
+                      <tr key={cert.id} className="hover:bg-white/30 dark:hover:bg-white/10 transition-colors">
                         {/* Batch ID */}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 shadow-md">
                               <FileText className="w-4 h-4 text-white" />
                             </div>
-                            <span className="text-sm font-semibold text-primary">
-                              {cert.certificate_id}
-                            </span>
+                            <span className="text-sm font-semibold text-primary">{cert.certificate_id}</span>
                           </div>
                         </td>
 
-                        {/* Dynamic Branch Stock Columns */}
+                        {/* Dynamic Branch Stock Columns - HEAD BRANCH + SUB-BRANCHES */}
                         {orderedBranches.map((branch) => {
-                          const stock = getBranchStock(
-                            cert,
-                            branch.branch_code,
-                          );
+                          const stock = getBranchStock(cert, branch.branch_code);
                           return (
                             <td key={branch.branch_code} className="px-6 py-4">
                               <div className="text-center">
-                                <p className="text-sm font-semibold text-primary">
-                                  {formatNumber(stock.certificates)} certs
-                                </p>
-                                <p className="text-xs text-secondary">
-                                  {formatNumber(stock.medals)} medals
-                                </p>
+                                <p className="text-sm font-semibold text-primary">{formatNumber(stock.certificates)} certs</p>
+                                <p className="text-xs text-secondary">{formatNumber(stock.medals)} medals</p>
                               </div>
                             </td>
                           );
@@ -857,14 +783,8 @@ const Certificates = () => {
                         {/* Total Batch - CUMULATIVE */}
                         <td className="px-6 py-4">
                           <div className="text-center">
-                            <p className="text-sm font-semibold text-primary">
-                              {formatNumber(cert.cumulative_total_cert || 0)}{" "}
-                              certs
-                            </p>
-                            <p className="text-xs text-secondary">
-                              {formatNumber(cert.cumulative_total_medal || 0)}{" "}
-                              medals
-                            </p>
+                            <p className="text-sm font-semibold text-primary">{formatNumber(cert.cumulative_total_cert || 0)} certs</p>
+                            <p className="text-xs text-secondary">{formatNumber(cert.cumulative_total_medal || 0)} medals</p>
                           </div>
                         </td>
 
@@ -872,12 +792,7 @@ const Certificates = () => {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-secondary" />
-                            <span className="text-sm text-secondary">
-                              {formatDate(
-                                cert.created_at,
-                                DATE_FORMATS.DISPLAY,
-                              )}
-                            </span>
+                            <span className="text-sm text-secondary">{formatDate(cert.created_at, DATE_FORMATS.DISPLAY)}</span>
                           </div>
                         </td>
                       </tr>
@@ -891,74 +806,42 @@ const Certificates = () => {
                 <div className="p-6 border-t border-gray-200/50 dark:border-white/10">
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-secondary">
-                      Showing{" "}
-                      {(pagination.currentPage - 1) * pagination.pageSize + 1}{" "}
-                      to{" "}
-                      {Math.min(
-                        pagination.currentPage * pagination.pageSize,
-                        pagination.total,
-                      )}{" "}
-                      of {formatNumber(pagination.total)} batches
+                      Showing {(pagination.currentPage - 1) * pagination.pageSize + 1} to {Math.min(pagination.currentPage * pagination.pageSize, pagination.total)} of {formatNumber(pagination.total)} batches
                     </p>
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="small"
-                        icon={<ChevronLeft className="w-4 h-4" />}
-                        onClick={() =>
-                          handlePageChange(pagination.currentPage - 1)
-                        }
-                        disabled={pagination.currentPage === 1}
-                      >
+                      <Button variant="ghost" size="small" icon={<ChevronLeft className="w-4 h-4" />} onClick={() => handlePageChange(pagination.currentPage - 1)} disabled={pagination.currentPage === 1}>
                         Previous
                       </Button>
                       <div className="flex items-center gap-1">
-                        {Array.from(
-                          { length: pagination.totalPages },
-                          (_, i) => {
-                            const page = i + 1;
-                            if (
-                              page === 1 ||
-                              page === pagination.totalPages ||
-                              Math.abs(page - pagination.currentPage) <= 1
-                            ) {
-                              return (
-                                <button
-                                  key={page}
-                                  onClick={() => handlePageChange(page)}
-                                  className={`min-w-[2.5rem] h-10 px-3 rounded-lg text-sm font-medium transition-colors ${page === pagination.currentPage ? "bg-primary text-white" : "text-primary hover:bg-white/30 dark:hover:bg-white/5"}`}
-                                >
-                                  {page}
-                                </button>
-                              );
-                            } else if (
-                              page === pagination.currentPage - 2 ||
-                              page === pagination.currentPage + 2
-                            ) {
-                              return (
-                                <span
-                                  key={page}
-                                  className="px-2 text-secondary"
-                                >
-                                  ...
-                                </span>
-                              );
-                            }
-                            return null;
-                          },
-                        )}
+                        {Array.from({ length: pagination.totalPages }, (_, i) => {
+                          const page = i + 1;
+                          if (page === 1 || page === pagination.totalPages || Math.abs(page - pagination.currentPage) <= 1) {
+                            return (
+                              <button
+                                key={page}
+                                onClick={() => handlePageChange(page)}
+                                className={`min-w-[2.5rem] h-10 px-3 rounded-lg text-sm font-medium transition-colors ${page === pagination.currentPage ? "bg-primary text-white" : "text-primary hover:bg-white/30 dark:hover:bg-white/5"}`}
+                              >
+                                {page}
+                              </button>
+                            );
+                          } else if (page === pagination.currentPage - 2 || page === pagination.currentPage + 2) {
+                            return (
+                              <span key={page} className="px-2 text-secondary">
+                                ...
+                              </span>
+                            );
+                          }
+                          return null;
+                        })}
                       </div>
                       <Button
                         variant="ghost"
                         size="small"
                         icon={<ChevronRight className="w-4 h-4" />}
                         iconPosition="right"
-                        onClick={() =>
-                          handlePageChange(pagination.currentPage + 1)
-                        }
-                        disabled={
-                          pagination.currentPage === pagination.totalPages
-                        }
+                        onClick={() => handlePageChange(pagination.currentPage + 1)}
+                        disabled={pagination.currentPage === pagination.totalPages}
                       >
                         Next
                       </Button>
@@ -976,19 +859,10 @@ const Certificates = () => {
         <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-status-error/50 shadow-lg">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-status-error mb-1">
-                Danger Zone
-              </h3>
-              <p className="text-sm text-secondary">
-                Permanently delete all certificate records
-              </p>
+              <h3 className="text-lg font-semibold text-status-error mb-1">Danger Zone</h3>
+              <p className="text-sm text-secondary">Permanently delete all certificate records</p>
             </div>
-            <Button
-              variant="danger"
-              size="medium"
-              onClick={handleClearAll}
-              icon={<Trash2 className="w-4 h-4" />}
-            >
+            <Button variant="danger" size="medium" onClick={handleClearAll} icon={<Trash2 className="w-4 h-4" />}>
               Clear All
             </Button>
           </div>
@@ -1023,28 +897,19 @@ const Certificates = () => {
               placeholder="e.g., BATCH-2026-001"
               className="w-full px-4 py-2 bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-primary placeholder-secondary focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
-            {addForm.touched.certificate_id &&
-              addForm.errors.certificate_id && (
-                <p className="text-sm text-status-error mt-1">
-                  {addForm.errors.certificate_id}
-                </p>
-              )}
+            {addForm.touched.certificate_id && addForm.errors.certificate_id && <p className="text-sm text-status-error mt-1">{addForm.errors.certificate_id}</p>}
           </div>
 
           {/* Head Branch Section */}
           {selectedHeadBranch && (
             <div className="backdrop-blur-sm bg-white/20 dark:bg-white/5 p-4 rounded-xl border border-gray-200/30 dark:border-white/5">
               <h4 className="text-sm font-semibold text-primary mb-3 flex items-center gap-2">
-                <span
-                  className={`w-3 h-3 rounded-full bg-gradient-to-br ${getBranchColor(selectedHeadBranch.branch_code)}`}
-                ></span>
+                <span className={`w-3 h-3 rounded-full bg-gradient-to-br ${getBranchColor(selectedHeadBranch.branch_code)}`}></span>
                 {selectedHeadBranch.branch_code} - Initial Stock
               </h4>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm text-secondary mb-1">
-                    Certificates
-                  </label>
+                  <label className="block text-sm text-secondary mb-1">Certificates</label>
                   <input
                     type="number"
                     name="jumlah_sertifikat"
@@ -1056,9 +921,7 @@ const Certificates = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-secondary mb-1">
-                    Medals
-                  </label>
+                  <label className="block text-sm text-secondary mb-1">Medals</label>
                   <input
                     type="number"
                     name="jumlah_medali"
@@ -1077,14 +940,8 @@ const Certificates = () => {
           <div className="flex items-start gap-2 p-3 bg-blue-500/10 rounded-lg">
             <AlertCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm text-primary font-medium mb-1">
-                Stock Distribution Info
-              </p>
-              <p className="text-sm text-secondary">
-                New batches are added to {selectedHeadBranch?.branch_code} only.
-                Use "Migrate Stock" to transfer certificates and medals to other
-                branches in the same regional hub.
-              </p>
+              <p className="text-sm text-primary font-medium mb-1">Stock Distribution Info</p>
+              <p className="text-sm text-secondary">New batches are added to {selectedHeadBranch?.branch_code} only. Use "Migrate Stock" to transfer certificates and medals to other branches in the same regional hub.</p>
             </div>
           </div>
 
@@ -1102,15 +959,7 @@ const Certificates = () => {
             >
               Cancel
             </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              size="medium"
-              icon={<Check className="w-4 h-4" />}
-              disabled={addForm.isSubmitting}
-              loading={addForm.isSubmitting}
-              className="flex-1"
-            >
+            <Button type="submit" variant="primary" size="medium" icon={<Check className="w-4 h-4" />} disabled={addForm.isSubmitting} loading={addForm.isSubmitting} className="flex-1">
               Create Batch
             </Button>
           </div>
@@ -1143,35 +992,19 @@ const Certificates = () => {
               onBlur={migrateForm.handleBlur}
               className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-white/10 rounded-xl text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
             >
-              <option
-                value=""
-                className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-              >
+              <option value="" className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
                 Choose a batch...
               </option>
               {availableBatchesForMigration.map((cert) => {
-                const headStock = cert.stock_by_branch?.find(
-                  (s) => s.branch_code === selectedHeadBranch?.branch_code,
-                );
+                const headStock = cert.stock_by_branch?.find((s) => s.branch_code === selectedHeadBranch?.branch_code);
                 return (
-                  <option
-                    key={cert.id}
-                    value={cert.certificate_id}
-                    className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                  >
-                    {cert.certificate_id} - {selectedHeadBranch?.branch_code}:{" "}
-                    {headStock?.certificates || 0} certs,{" "}
-                    {headStock?.medals || 0} medals
+                  <option key={cert.id} value={cert.certificate_id} className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+                    {cert.certificate_id} - {selectedHeadBranch?.branch_code}: {headStock?.certificates || 0} certs, {headStock?.medals || 0} medals
                   </option>
                 );
               })}
             </select>
-            {migrateForm.touched.certificate_id &&
-              migrateForm.errors.certificate_id && (
-                <p className="text-sm text-status-error mt-1">
-                  {migrateForm.errors.certificate_id}
-                </p>
-              )}
+            {migrateForm.touched.certificate_id && migrateForm.errors.certificate_id && <p className="text-sm text-status-error mt-1">{migrateForm.errors.certificate_id}</p>}
           </div>
 
           {/* Destination Branch */}
@@ -1179,73 +1012,42 @@ const Certificates = () => {
             <label className="block text-sm font-medium text-primary mb-2">
               Destination Branch <span className="text-status-error">*</span>
             </label>
-            {filteredDestinationBranches.length === 0 ? (
+            {destinationBranches.length === 0 ? (
               <div className="p-4 rounded-xl border-2 border-gray-200 dark:border-white/10 text-center">
-                <p className="text-sm text-secondary">
-                  No destination branches available in{" "}
-                  {selectedHeadBranch?.branch_code} regional hub
-                </p>
+                <p className="text-sm text-secondary">No destination branches available in {selectedHeadBranch?.branch_code} regional hub</p>
               </div>
             ) : (
-              <div
-                className={`grid gap-3 ${filteredDestinationBranches.length === 2 ? "grid-cols-2" : "grid-cols-1"}`}
-              >
-                {filteredDestinationBranches.map((branch) => {
-                  const isSelected =
-                    migrateForm.values.destination_branch ===
-                    branch.branch_code;
+              <div className={`grid gap-3 ${destinationBranches.length === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
+                {destinationBranches.map((branch) => {
+                  const isSelected = migrateForm.values.destination_branch === branch.branch_code;
                   return (
                     <button
                       key={branch.branch_code}
                       type="button"
-                      onClick={() =>
-                        migrateForm.setFieldValue(
-                          "destination_branch",
-                          branch.branch_code,
-                        )
-                      }
+                      onClick={() => migrateForm.setFieldValue("destination_branch", branch.branch_code)}
                       className={`p-4 rounded-xl border-2 transition-all ${
-                        isSelected
-                          ? `${getBranchBorderColor(branch.branch_code)} ${getBranchBgColor(branch.branch_code)}`
-                          : "border-gray-200 dark:border-white/10 hover:border-primary/50"
+                        isSelected ? `${getBranchBorderColor(branch.branch_code)} ${getBranchBgColor(branch.branch_code)}` : "border-gray-200 dark:border-white/10 hover:border-primary/50"
                       }`}
                     >
                       <div className="flex items-center gap-2 mb-2">
-                        <span
-                          className={`w-3 h-3 rounded-full bg-gradient-to-br ${getBranchColor(branch.branch_code)}`}
-                        ></span>
-                        <span
-                          className={`font-semibold ${isSelected ? getBranchTextColor(branch.branch_code) : "text-primary"}`}
-                        >
-                          {branch.branch_code}
-                        </span>
+                        <span className={`w-3 h-3 rounded-full bg-gradient-to-br ${getBranchColor(branch.branch_code)}`}></span>
+                        <span className={`font-semibold ${isSelected ? getBranchTextColor(branch.branch_code) : "text-primary"}`}>{branch.branch_code}</span>
                       </div>
-                      <p className="text-xs text-secondary">
-                        {branch.branch_name}
-                      </p>
+                      <p className="text-xs text-secondary">{branch.branch_name}</p>
                     </button>
                   );
                 })}
               </div>
             )}
-            {migrateForm.touched.destination_branch &&
-              migrateForm.errors.destination_branch && (
-                <p className="text-sm text-status-error mt-1">
-                  {migrateForm.errors.destination_branch}
-                </p>
-              )}
+            {migrateForm.touched.destination_branch && migrateForm.errors.destination_branch && <p className="text-sm text-status-error mt-1">{migrateForm.errors.destination_branch}</p>}
           </div>
 
           {/* Migration Amount */}
           <div className="backdrop-blur-sm bg-white/20 dark:bg-white/5 p-4 rounded-xl border border-gray-200/30 dark:border-white/5">
-            <h4 className="text-sm font-semibold text-primary mb-3">
-              Migration Amount
-            </h4>
+            <h4 className="text-sm font-semibold text-primary mb-3">Migration Amount</h4>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm text-secondary mb-1">
-                  Certificates
-                </label>
+                <label className="block text-sm text-secondary mb-1">Certificates</label>
                 <input
                   type="number"
                   name="certificate_amount"
@@ -1257,9 +1059,7 @@ const Certificates = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm text-secondary mb-1">
-                  Medals
-                </label>
+                <label className="block text-sm text-secondary mb-1">Medals</label>
                 <input
                   type="number"
                   name="medal_amount"
@@ -1278,19 +1078,12 @@ const Certificates = () => {
             <div className="flex items-start gap-2 p-3 bg-green-500/10 rounded-lg">
               <AlertCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm text-primary font-medium mb-1">
-                  Available {selectedHeadBranch.branch_code} Stock
-                </p>
+                <p className="text-sm text-primary font-medium mb-1">Available {selectedHeadBranch.branch_code} Stock</p>
                 <p className="text-sm text-secondary">
                   {(() => {
-                    const cert = certificates.find(
-                      (c) =>
-                        c.certificate_id === migrateForm.values.certificate_id,
-                    );
+                    const cert = certificates.find((c) => c.certificate_id === migrateForm.values.certificate_id);
                     if (!cert) return "Batch not found";
-                    const headStock = cert.stock_by_branch?.find(
-                      (s) => s.branch_code === selectedHeadBranch.branch_code,
-                    );
+                    const headStock = cert.stock_by_branch?.find((s) => s.branch_code === selectedHeadBranch.branch_code);
                     return `${headStock?.certificates || 0} certificates, ${headStock?.medals || 0} medals`;
                   })()}
                 </p>
@@ -1302,19 +1095,11 @@ const Certificates = () => {
           <div className="flex items-start gap-2 p-3 bg-blue-500/10 rounded-lg">
             <AlertCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm text-primary font-medium mb-1">
-                Migration Rules
-              </p>
+              <p className="text-sm text-primary font-medium mb-1">Migration Rules</p>
               <ul className="text-sm text-secondary space-y-1">
-                <li>
-                  • Stock is transferred from {selectedHeadBranch?.branch_code}{" "}
-                  to the selected branch
-                </li>
+                <li>• Stock is transferred from {selectedHeadBranch?.branch_code} to the selected branch</li>
                 <li>• At least one certificate or medal must be migrated</li>
-                <li>
-                  • Cannot exceed available {selectedHeadBranch?.branch_code}{" "}
-                  stock
-                </li>
+                <li>• Cannot exceed available {selectedHeadBranch?.branch_code} stock</li>
                 <li>• Can only migrate to branches in the same regional hub</li>
               </ul>
             </div>
@@ -1334,15 +1119,7 @@ const Certificates = () => {
             >
               Cancel
             </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              size="medium"
-              icon={<ArrowRightLeft className="w-4 h-4" />}
-              disabled={migrateForm.isSubmitting}
-              loading={migrateForm.isSubmitting}
-              className="flex-1"
-            >
+            <Button type="submit" variant="primary" size="medium" icon={<ArrowRightLeft className="w-4 h-4" />} disabled={migrateForm.isSubmitting} loading={migrateForm.isSubmitting} className="flex-1">
               Migrate Stock
             </Button>
           </div>

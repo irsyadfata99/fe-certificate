@@ -7,16 +7,17 @@ import { toast } from "react-hot-toast";
 // =====================================================
 
 /**
- * Get all certificates with pagination
+ * Get all certificates with pagination and regional hub filter
  * @param {Object} params - Query parameters
  * @param {number} params.limit - Number of items per page
  * @param {number} params.offset - Offset for pagination
  * @param {string} params.search - Search term (optional)
+ * @param {string} params.regional_hub - Regional hub code for filtering (optional)
  * @returns {Promise} API response
  */
 export const getCertificates = async (params = {}) => {
   try {
-    const { limit = 10, offset = 0, search = "" } = params;
+    const { limit = 10, offset = 0, search = "", regional_hub = "" } = params;
 
     const queryParams = new URLSearchParams({
       limit: limit.toString(),
@@ -25,6 +26,11 @@ export const getCertificates = async (params = {}) => {
 
     if (search && search.trim()) {
       queryParams.append("search", search.trim());
+    }
+
+    // NEW: Add regional_hub filter
+    if (regional_hub && regional_hub.trim()) {
+      queryParams.append("regional_hub", regional_hub.trim());
     }
 
     const response = await api.get(`/certificates?${queryParams.toString()}`);
@@ -70,9 +76,7 @@ export const createCertificate = async (data) => {
       branch_code: data.branch_code, // Send selected head branch
     });
 
-    toast.success(
-      response.data?.message || "Certificate batch created successfully",
-    );
+    toast.success(response.data?.message || "Certificate batch created successfully");
 
     return response.data;
   } catch (error) {
@@ -149,9 +153,7 @@ export const getTransactionHistory = async (params = {}) => {
       queryParams.append("to_date", to_date.trim());
     }
 
-    const response = await api.get(
-      `/certificates/history?${queryParams.toString()}`,
-    );
+    const response = await api.get(`/certificates/history?${queryParams.toString()}`);
 
     return response.data;
   } catch (error) {
@@ -168,9 +170,7 @@ export const clearAllCertificates = async () => {
   try {
     const response = await api.post("/certificates/clear-all");
 
-    toast.success(
-      response.data?.message || "All certificates cleared successfully",
-    );
+    toast.success(response.data?.message || "All certificates cleared successfully");
 
     return response.data;
   } catch (error) {

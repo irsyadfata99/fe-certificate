@@ -1,9 +1,10 @@
-import { useEffect, useState, useCallback } from "react";
-import { Search, Download, FileText, AlertCircle, ChevronLeft, ChevronRight, Calendar, X, Package, Users, TrendingUp, ArrowRight } from "lucide-react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { Search, Download, FileText, AlertCircle, ChevronLeft, ChevronRight, Calendar, X, Package, Users, TrendingUp, ArrowRight, Building2 } from "lucide-react";
 import Button from "@components/common/Button";
 import Spinner from "@components/common/Spinner";
 import Input from "@components/common/Input";
 import { useDebounce } from "@hooks/useDebounce";
+import { useHeadBranches } from "@hooks/useBranches";
 import { getLogs } from "@api/logsApi";
 import { exportLogs } from "@api/exportApi";
 import { formatDate } from "@utils/formatters";
@@ -11,12 +12,20 @@ import { DATE_FORMATS } from "@utils/constants";
 
 const Logs = () => {
   // =====================================================
+  // HOOKS - HEAD BRANCHES
+  // =====================================================
+  const { headBranches, loading: headBranchesLoading } = useHeadBranches();
+
+  // =====================================================
   // STATE MANAGEMENT
   // =====================================================
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [exporting, setExporting] = useState(false);
+
+  // Selected regional hub for filtering
+  const [selectedRegionalHub, setSelectedRegionalHub] = useState("");
 
   // Pagination state
   const [pagination, setPagination] = useState({
@@ -42,6 +51,62 @@ const Logs = () => {
     { value: "CREATE", label: "Create", color: "from-green-500 to-emerald-500" },
     { value: "MIGRATE", label: "Migrate", color: "from-purple-500 to-pink-500" },
   ];
+
+  // =====================================================
+  // DYNAMIC BRANCH COLOR GENERATOR
+  // =====================================================
+  const generateBranchColors = useMemo(() => {
+    const predefinedColors = {
+      SND: {
+        gradient: "from-green-500 to-emerald-500",
+        text: "text-green-600 dark:text-green-400",
+        border: "border-green-500",
+        bg: "bg-green-500/10",
+      },
+      BSD: {
+        gradient: "from-blue-500 to-cyan-500",
+        text: "text-blue-600 dark:text-blue-400",
+        border: "border-blue-500",
+        bg: "bg-blue-500/10",
+      },
+      PIK: {
+        gradient: "from-purple-500 to-pink-500",
+        text: "text-purple-600 dark:text-purple-400",
+        border: "border-purple-500",
+        bg: "bg-purple-500/10",
+      },
+      MKW: {
+        gradient: "from-orange-500 to-red-500",
+        text: "text-orange-600 dark:text-orange-400",
+        border: "border-orange-500",
+        bg: "bg-orange-500/10",
+      },
+      KBP: {
+        gradient: "from-yellow-500 to-amber-500",
+        text: "text-yellow-600 dark:text-yellow-400",
+        border: "border-yellow-500",
+        bg: "bg-yellow-500/10",
+      },
+    };
+
+    return predefinedColors;
+  }, []);
+
+  const getBranchColor = (branchCode) => {
+    return generateBranchColors[branchCode]?.gradient || "from-gray-500 to-slate-500";
+  };
+
+  const getBranchTextColor = (branchCode) => {
+    return generateBranchColors[branchCode]?.text || "text-gray-600 dark:text-gray-400";
+  };
+
+  const getBranchBorderColor = (branchCode) => {
+    return generateBranchColors[branchCode]?.border || "border-gray-500";
+  };
+
+  const getBranchBgColor = (branchCode) => {
+    return generateBranchColors[branchCode]?.bg || "bg-gray-500/10";
+  };
 
   // =====================================================
   // DATA FETCHING
@@ -78,10 +143,12 @@ const Logs = () => {
         params.to_date = filterToDate;
       }
 
-      const response = await getLogs(params);
+      // NEW: Add regional hub filter if selected
+      if (selectedRegionalHub) {
+        params.regional_hub = selectedRegionalHub;
+      }
 
-      console.log("=== LOGS API RESPONSE ===");
-      console.log("Full response:", response);
+      const response = await getLogs(params);
 
       if (response.success) {
         setLogs(response.data || []);
@@ -102,7 +169,7 @@ const Logs = () => {
     } finally {
       setLoading(false);
     }
-  }, [pagination.currentPage, pagination.pageSize, debouncedSearch, filterActionType, filterFromDate, filterToDate]);
+  }, [pagination.currentPage, pagination.pageSize, debouncedSearch, filterActionType, filterFromDate, filterToDate, selectedRegionalHub]);
 
   useEffect(() => {
     fetchLogs();
@@ -137,11 +204,17 @@ const Logs = () => {
     setPagination((prev) => ({ ...prev, currentPage: 1 }));
   };
 
+  const handleRegionalHubChange = (hubCode) => {
+    setSelectedRegionalHub(hubCode);
+    setPagination((prev) => ({ ...prev, currentPage: 1 }));
+  };
+
   const handleClearFilters = () => {
     setSearchTerm("");
     setFilterActionType("");
     setFilterFromDate("");
     setFilterToDate("");
+    setSelectedRegionalHub("");
     setPagination((prev) => ({ ...prev, currentPage: 1 }));
   };
 
@@ -162,7 +235,8 @@ const Logs = () => {
   const handleExportExcel = async () => {
     try {
       setExporting(true);
-      await exportLogs();
+      // Pass regional hub filter to export
+      await exportLogs({ regional_hub: selectedRegionalHub });
     } catch (err) {
       console.error("Failed to export logs:", err);
     } finally {
@@ -181,9 +255,11 @@ const Logs = () => {
 
   const getBranchBadge = (branch) => {
     const badges = {
-      SND: { label: "SND", color: "bg-blue-500" },
-      MKW: { label: "MKW", color: "bg-purple-500" },
-      KBP: { label: "KBP", color: "bg-pink-500" },
+      SND: { label: "SND", color: "bg-green-500" },
+      BSD: { label: "BSD", color: "bg-blue-500" },
+      PIK: { label: "PIK", color: "bg-purple-500" },
+      MKW: { label: "MKW", color: "bg-orange-500" },
+      KBP: { label: "KBP", color: "bg-yellow-500" },
     };
     return badges[branch] || { label: branch, color: "bg-gray-500" };
   };
@@ -192,7 +268,7 @@ const Logs = () => {
   // LOADING STATE
   // =====================================================
 
-  if (loading && logs.length === 0) {
+  if ((loading && logs.length === 0) || headBranchesLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Spinner size="large" />
@@ -236,11 +312,51 @@ const Logs = () => {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="primary" size="medium" icon={<Download className="w-4 h-4" />} onClick={handleExportExcel} disabled={exporting} loading={exporting}>
-              Export Excel
+              Export Excel {selectedRegionalHub && `(${selectedRegionalHub})`}
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Regional Hub Filter */}
+      {headBranches.length > 0 && (
+        <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-4 border border-gray-200/50 dark:border-white/10 shadow-lg">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-primary" />
+              <label className="text-sm font-semibold text-primary">Filter by Regional Hub:</label>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {/* All option */}
+              <button
+                onClick={() => handleRegionalHubChange("")}
+                className={`px-4 py-2 rounded-xl border-2 transition-all ${selectedRegionalHub === "" ? "border-primary bg-primary/10 text-primary" : "border-gray-200 dark:border-white/10 text-secondary hover:border-primary/50"}`}
+              >
+                <span className="font-semibold">All Hubs</span>
+              </button>
+
+              {/* Head branches */}
+              {headBranches.map((branch) => (
+                <button
+                  key={branch.branch_code}
+                  onClick={() => handleRegionalHubChange(branch.branch_code)}
+                  className={`px-4 py-2 rounded-xl border-2 transition-all ${
+                    selectedRegionalHub === branch.branch_code
+                      ? `${getBranchBorderColor(branch.branch_code)} ${getBranchBgColor(branch.branch_code)} ${getBranchTextColor(branch.branch_code)}`
+                      : "border-gray-200 dark:border-white/10 text-secondary hover:border-primary/50"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`w-3 h-3 rounded-full bg-gradient-to-br ${getBranchColor(branch.branch_code)}`}></span>
+                    <span className="font-semibold">{branch.branch_code}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+          {selectedRegionalHub && <p className="text-xs text-secondary mt-2 ml-7">Showing logs for {headBranches.find((b) => b.branch_code === selectedRegionalHub)?.branch_name} regional hub</p>}
+        </div>
+      )}
 
       {/* Search and Filter Bar */}
       <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-4 border border-gray-200/50 dark:border-white/10 shadow-lg">
@@ -307,7 +423,7 @@ const Logs = () => {
           </div>
 
           {/* Clear Filters Button & Active Filters Display */}
-          {(searchTerm || filterActionType || filterFromDate || filterToDate) && (
+          {(searchTerm || filterActionType || filterFromDate || filterToDate || selectedRegionalHub) && (
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="ghost" size="small" onClick={handleClearFilters} icon={<X className="w-4 h-4" />}>
                 Clear All
@@ -316,6 +432,14 @@ const Logs = () => {
               {/* Active Filters Display */}
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs text-secondary font-medium">Active filters:</span>
+                {selectedRegionalHub && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-lg text-xs">
+                    Hub: {selectedRegionalHub}
+                    <button onClick={() => setSelectedRegionalHub("")} className="hover:bg-primary/20 rounded">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
                 {filterActionType && (
                   <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-lg text-xs">
                     Action: {actionTypes.find((a) => a.value === filterActionType)?.label}
@@ -355,7 +479,7 @@ const Logs = () => {
                 <FileText className="w-8 h-8 text-primary" />
               </div>
               <h3 className="text-lg font-semibold text-primary mb-2">No Logs Found</h3>
-              <p className="text-secondary text-center mb-6 max-w-md">{searchTerm || filterActionType || filterFromDate || filterToDate ? "Try adjusting your filters" : "No activity logs available yet"}</p>
+              <p className="text-secondary text-center mb-6 max-w-md">{searchTerm || filterActionType || filterFromDate || filterToDate || selectedRegionalHub ? "Try adjusting your filters" : "No activity logs available yet"}</p>
             </div>
           ) : (
             <>

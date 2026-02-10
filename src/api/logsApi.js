@@ -9,7 +9,7 @@ import { handleApiError } from "../utils/errorHandler";
 
 /**
  * Get all logs with filters
- * @param {Object} params - { limit, offset, certificate_id, action_type, from_date, to_date, search }
+ * @param {Object} params - { limit, offset, certificate_id, action_type, from_date, to_date, search, regional_hub }
  * @returns {Promise} Logs list with pagination
  */
 export const getLogs = async (params = {}) => {
@@ -29,12 +29,15 @@ export const getLogs = async (params = {}) => {
  */
 export const getLogsByCertificate = async (certificateId) => {
   try {
-    const response = await axiosInstance.get(
-      ENDPOINTS.LOGS_BY_CERT(certificateId),
-    );
+    const response = await axiosInstance.get(ENDPOINTS.LOGS_BY_CERT(certificateId));
     return response.data;
   } catch (error) {
     handleApiError(error);
     throw error;
   }
+};
+
+export default {
+  getLogs,
+  getLogsByCertificate,
 };
