@@ -3,7 +3,6 @@ import Select from "react-select";
 import {
   Plus,
   Search,
-  Trash2,
   Users,
   AlertCircle,
   ChevronLeft,
@@ -17,6 +16,7 @@ import {
   Eye,
   EyeOff,
   Copy,
+  UserX, // Resign icon
 } from "lucide-react";
 import Button from "@components/common/Button";
 import Spinner from "@components/common/Spinner";
@@ -33,12 +33,9 @@ import {
 } from "@api/teacherApi";
 import {
   formatDate,
-  formatBranchesArray,
-  formatDivisionsArray,
   formatBranchBadges,
   formatDivisionBadges,
 } from "@utils/formatters";
-import { validateTeacherForm } from "@utils/validators";
 import { DATE_FORMATS } from "@utils/constants";
 import { toast } from "react-hot-toast";
 
@@ -54,6 +51,9 @@ const Teachers = () => {
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Toggle to show/hide resigned teachers
+  const [showInactive, setShowInactive] = useState(false);
 
   // Pagination state
   const [pagination, setPagination] = useState({
@@ -294,7 +294,10 @@ const Teachers = () => {
     setError(null);
 
     try {
-      const params = {};
+      const params = {
+        include_inactive: showInactive,
+      };
+
       const response = await getTeachers(params);
 
       if (response.success) {
@@ -311,7 +314,6 @@ const Teachers = () => {
               .toLowerCase()
               .includes(searchLower);
 
-            // Search in branches
             const matchesBranches = teacher.branches?.some(
               (b) =>
                 b.branch_code.toLowerCase().includes(searchLower) ||
@@ -336,7 +338,6 @@ const Teachers = () => {
           );
         }
 
-        // Get total after filtering
         const totalFiltered = fetchedTeachers.length;
 
         // Client-side sorting
@@ -353,7 +354,6 @@ const Teachers = () => {
 
         setTeachers(paginatedTeachers);
 
-        // Calculate pagination based on filtered data
         const totalPagesCalculated =
           Math.ceil(totalFiltered / pagination.pageSize) || 1;
 
@@ -377,6 +377,7 @@ const Teachers = () => {
     filterBranch,
     sortConfig.key,
     sortConfig.direction,
+    showInactive,
   ]);
 
   useEffect(() => {
@@ -392,7 +393,6 @@ const Teachers = () => {
       let aVal = a[key];
       let bVal = b[key];
 
-      // Handle different data types
       if (key === "created_at") {
         aVal = new Date(aVal);
         bVal = new Date(bVal);
@@ -442,9 +442,9 @@ const Teachers = () => {
       const payload = {
         username: values.username.trim(),
         teacher_name: values.teacher_name.trim(),
-        branchCodes: values.branches, // Array of branch codes
-        divisions: values.divisions, // Array of division codes
-        branchOptions: branchOptions, // CRITICAL: Pass branch options for ID conversion
+        branchCodes: values.branches,
+        divisions: values.divisions,
+        branchOptions: branchOptions,
       };
 
       const response = await createTeacher(payload);
@@ -478,12 +478,11 @@ const Teachers = () => {
       const payload = {
         username: values.username.trim(),
         teacher_name: values.teacher_name.trim(),
-        branchCodes: values.branches, // Array of branch codes
-        divisions: values.divisions, // Array of division codes
-        branchOptions: branchOptions, // CRITICAL: Pass branch options for ID conversion
+        branchCodes: values.branches,
+        divisions: values.divisions,
+        branchOptions: branchOptions,
       };
 
-      // Only include new_password if it's provided
       if (values.new_password && values.new_password.trim()) {
         payload.new_password = values.new_password.trim();
       }
@@ -503,25 +502,24 @@ const Teachers = () => {
   }
 
   // =====================================================
-  // HANDLERS - DELETE
+  // HANDLERS - RESIGN (SOFT DELETE)
   // =====================================================
 
-  const handleDeleteTeacher = async (teacher) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete teacher "${teacher.teacher_name}"?\n\nThis action CANNOT be undone!`,
-      )
-    ) {
+  const handleResignTeacher = async (teacher) => {
+    // Warning message untuk resign
+    const confirmMessage = `Are you sure you want to resign "${teacher.teacher_name}"?\n\n⚠️ WARNING: This action is irreversible!\n\n✓ Teacher cannot login anymore\n✓ Historical data will be preserved\n✓ Action is permanent`;
+
+    if (!window.confirm(confirmMessage)) {
       return;
     }
 
     try {
       await deleteTeacher(teacher.id);
-      toast.success("Teacher deleted successfully!");
+      toast.success(`${teacher.teacher_name} has been resigned successfully!`);
       await fetchTeachers();
     } catch (err) {
-      console.error("Failed to delete teacher:", err);
-      toast.error(err.response?.data?.message || "Failed to delete teacher");
+      console.error("Failed to resign teacher:", err);
+      toast.error(err.response?.data?.message || "Failed to resign teacher");
     }
   };
 
@@ -530,16 +528,19 @@ const Teachers = () => {
   // =====================================================
 
   const openEditModal = (teacher) => {
-    setSelectedTeacher(teacher);
+    if (!teacher.is_active) {
+      toast.error(
+        "Cannot edit resigned teacher. Please contact administrator to restore this account.",
+      );
+      return;
+    }
 
-    // Reset form first
+    setSelectedTeacher(teacher);
     editForm.resetForm();
 
-    // Convert branches array to branch codes for react-select
     const branchCodes = teacher.branches?.map((b) => b.branch_code) || [];
     const divisions = teacher.divisions || [];
 
-    // Set form values
     setTimeout(() => {
       editForm.setFieldValue("username", teacher.username);
       editForm.setFieldValue("teacher_name", teacher.teacher_name);
@@ -579,6 +580,11 @@ const Teachers = () => {
     setSearchTerm("");
     setFilterDivision("");
     setFilterBranch("");
+    setPagination((prev) => ({ ...prev, currentPage: 1 }));
+  };
+
+  const handleToggleShowInactive = () => {
+    setShowInactive(!showInactive);
     setPagination((prev) => ({ ...prev, currentPage: 1 }));
   };
 
@@ -654,6 +660,26 @@ const Teachers = () => {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {/* Show Inactive Toggle */}
+            <button
+              onClick={handleToggleShowInactive}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                showInactive
+                  ? "bg-orange-500 text-white"
+                  : "bg-white/50 dark:bg-white/5 text-primary border border-gray-200 dark:border-white/10"
+              }`}
+              title={
+                showInactive
+                  ? "Hide resigned teachers"
+                  : "Show resigned teachers"
+              }
+            >
+              <div className="flex items-center gap-2">
+                <UserX className="w-4 h-4" />
+                {showInactive ? "Hide Resigned" : "Show Resigned"}
+              </div>
+            </button>
+
             <Button
               variant="primary"
               size="medium"
@@ -669,7 +695,6 @@ const Teachers = () => {
       {/* Search and Filter Bar */}
       <div className="backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-4 border border-gray-200/50 dark:border-white/10 shadow-lg">
         <div className="space-y-3">
-          {/* Search Input */}
           <div className="flex gap-2">
             <div className="flex-1">
               <Input
@@ -692,9 +717,7 @@ const Teachers = () => {
             </div>
           </div>
 
-          {/* Filter Options */}
           <div className="flex flex-wrap gap-3">
-            {/* Division Filter */}
             <div className="flex-1 min-w-[200px]">
               <select
                 value={filterDivision}
@@ -707,7 +730,6 @@ const Teachers = () => {
               </select>
             </div>
 
-            {/* Branch Filter - Dynamic */}
             <div className="flex-1 min-w-[200px]">
               <select
                 value={filterBranch}
@@ -723,7 +745,6 @@ const Teachers = () => {
               </select>
             </div>
 
-            {/* Clear Filters Button */}
             {(searchTerm || filterDivision || filterBranch) && (
               <Button
                 variant="ghost"
@@ -736,7 +757,6 @@ const Teachers = () => {
             )}
           </div>
 
-          {/* Active Filters Display */}
           {(filterDivision || filterBranch) && (
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs text-secondary font-medium">
@@ -783,23 +803,26 @@ const Teachers = () => {
               <p className="text-secondary text-center mb-6 max-w-md">
                 {searchTerm
                   ? "Try adjusting your search terms"
-                  : "Start by creating your first teacher account"}
+                  : showInactive
+                    ? "No resigned teachers found"
+                    : "Start by creating your first teacher account"}
               </p>
-              <Button
-                variant="primary"
-                size="medium"
-                icon={<Plus className="w-4 h-4" />}
-                onClick={() => setShowAddModal(true)}
-              >
-                Add First Teacher
-              </Button>
+              {!showInactive && (
+                <Button
+                  variant="primary"
+                  size="medium"
+                  icon={<Plus className="w-4 h-4" />}
+                  onClick={() => setShowAddModal(true)}
+                >
+                  Add First Teacher
+                </Button>
+              )}
             </div>
           ) : (
             <>
               <table className="w-full">
                 <thead className="bg-white/20 dark:bg-white/5 border-b border-gray-200/30 dark:border-white/5">
                   <tr>
-                    {/* Username */}
                     <th
                       onClick={() => handleSort("username")}
                       className="px-6 py-4 text-left text-sm font-semibold text-primary uppercase cursor-pointer select-none hover:bg-white/30 dark:hover:bg-white/10 transition-colors"
@@ -810,7 +833,6 @@ const Teachers = () => {
                       </div>
                     </th>
 
-                    {/* Teacher Name */}
                     <th
                       onClick={() => handleSort("teacher_name")}
                       className="px-6 py-4 text-left text-sm font-semibold text-primary uppercase cursor-pointer select-none hover:bg-white/30 dark:hover:bg-white/10 transition-colors"
@@ -821,28 +843,28 @@ const Teachers = () => {
                       </div>
                     </th>
 
-                    {/* Branches */}
                     <th className="px-6 py-4 text-left text-sm font-semibold text-primary uppercase">
                       Branches
                     </th>
 
-                    {/* Divisions */}
                     <th className="px-6 py-4 text-left text-sm font-semibold text-primary uppercase">
                       Divisions
                     </th>
 
-                    {/* Created */}
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-primary uppercase">
+                      Status
+                    </th>
+
                     <th
                       onClick={() => handleSort("created_at")}
                       className="px-6 py-4 text-left text-sm font-semibold text-primary uppercase cursor-pointer select-none hover:bg-white/30 dark:hover:bg-white/10 transition-colors"
                     >
                       <div className="flex items-center gap-2">
-                        Created
+                        {showInactive ? "Resigned" : "Created"}
                         <SortIcon columnKey="created_at" />
                       </div>
                     </th>
 
-                    {/* Actions */}
                     <th className="px-6 py-4 text-center text-sm font-semibold text-primary uppercase">
                       Actions
                     </th>
@@ -854,21 +876,41 @@ const Teachers = () => {
                     const divisionBadges = formatDivisionBadges(
                       teacher.divisions,
                     );
+                    const isResigned = !teacher.is_active;
 
                     return (
                       <tr
                         key={teacher.id}
-                        className="hover:bg-white/30 dark:hover:bg-white/10 transition-colors"
+                        className={`hover:bg-white/30 dark:hover:bg-white/10 transition-colors ${
+                          isResigned ? "opacity-60" : ""
+                        }`}
                       >
                         {/* Username */}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 shadow-md">
-                              <Users className="w-4 h-4 text-white" />
+                            <div
+                              className={`p-2 rounded-lg shadow-md ${
+                                isResigned
+                                  ? "bg-gradient-to-br from-gray-400 to-gray-500"
+                                  : "bg-gradient-to-br from-blue-500 to-cyan-500"
+                              }`}
+                            >
+                              {isResigned ? (
+                                <UserX className="w-4 h-4 text-white" />
+                              ) : (
+                                <Users className="w-4 h-4 text-white" />
+                              )}
                             </div>
-                            <span className="text-sm font-semibold text-primary">
-                              {teacher.username}
-                            </span>
+                            <div>
+                              <span className="text-sm font-semibold text-primary">
+                                {teacher.username}
+                              </span>
+                              {isResigned && (
+                                <p className="text-xs text-orange-500 font-medium">
+                                  Resigned
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </td>
 
@@ -917,36 +959,62 @@ const Teachers = () => {
                           </div>
                         </td>
 
-                        {/* Created */}
+                        {/* Status */}
+                        <td className="px-6 py-4">
+                          {isResigned ? (
+                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                              <UserX className="w-3 h-3" />
+                              Resigned
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                              <Check className="w-3 h-3" />
+                              Active
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Created/Resigned Date */}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-secondary" />
-                            <span className="text-sm text-secondary">
-                              {formatDate(
-                                teacher.created_at,
-                                DATE_FORMATS.DISPLAY,
-                              )}
-                            </span>
+                            <div>
+                              <span className="text-sm text-secondary">
+                                {isResigned && teacher.resigned_at
+                                  ? formatDate(
+                                      teacher.resigned_at,
+                                      DATE_FORMATS.DISPLAY,
+                                    )
+                                  : formatDate(
+                                      teacher.created_at,
+                                      DATE_FORMATS.DISPLAY,
+                                    )}
+                              </span>
+                            </div>
                           </div>
                         </td>
 
                         {/* Actions */}
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => openEditModal(teacher)}
-                              className="p-2 rounded-lg text-primary hover:bg-white/30 dark:hover:bg-white/10 transition-colors"
-                              title="Edit teacher"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteTeacher(teacher)}
-                              className="p-2 rounded-lg text-status-error hover:bg-status-error/10 transition-colors"
-                              title="Delete teacher"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {!isResigned && (
+                              <button
+                                onClick={() => openEditModal(teacher)}
+                                className="p-2 rounded-lg text-primary hover:bg-white/30 dark:hover:bg-white/10 transition-colors"
+                                title="Edit teacher"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                            )}
+                            {!isResigned && (
+                              <button
+                                onClick={() => handleResignTeacher(teacher)}
+                                className="p-2 rounded-lg text-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
+                                title="Resign teacher (irreversible)"
+                              >
+                                <UserX className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -966,6 +1034,7 @@ const Teachers = () => {
                       pagination.total,
                     )}{" "}
                     of {pagination.total} teachers
+                    {showInactive && " (including resigned)"}
                   </p>
                   {pagination.totalPages > 1 && (
                     <div className="flex items-center gap-2">
@@ -1039,10 +1108,7 @@ const Teachers = () => {
         </div>
       </div>
 
-      {/* ===================================================== */}
       {/* ADD TEACHER MODAL */}
-      {/* ===================================================== */}
-
       <Modal
         isOpen={showAddModal}
         onClose={() => {
@@ -1053,7 +1119,6 @@ const Teachers = () => {
         size="medium"
       >
         <form onSubmit={addForm.handleSubmit} className="space-y-4">
-          {/* Username */}
           <div>
             <label className="block text-sm font-medium text-primary mb-2">
               Username <span className="text-status-error">*</span>
@@ -1077,7 +1142,6 @@ const Teachers = () => {
             </p>
           </div>
 
-          {/* Teacher Name */}
           <div>
             <label className="block text-sm font-medium text-primary mb-2">
               Full Name <span className="text-status-error">*</span>
@@ -1098,7 +1162,6 @@ const Teachers = () => {
             )}
           </div>
 
-          {/* Branches - Multi-Select */}
           <div>
             <label className="block text-sm font-medium text-primary mb-2">
               Branches <span className="text-status-error">*</span>
@@ -1128,7 +1191,6 @@ const Teachers = () => {
             </p>
           </div>
 
-          {/* Divisions - Multi-Select */}
           <div>
             <label className="block text-sm font-medium text-primary mb-2">
               Divisions <span className="text-status-error">*</span>
@@ -1158,7 +1220,6 @@ const Teachers = () => {
             </p>
           </div>
 
-          {/* Note */}
           <div className="flex items-start gap-2 p-3 bg-blue-500/10 rounded-lg">
             <AlertCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
             <div>
@@ -1172,7 +1233,6 @@ const Teachers = () => {
             </div>
           </div>
 
-          {/* Actions */}
           <div className="flex items-center gap-3 pt-4">
             <Button
               type="button"
@@ -1201,10 +1261,7 @@ const Teachers = () => {
         </form>
       </Modal>
 
-      {/* ===================================================== */}
       {/* EDIT TEACHER MODAL */}
-      {/* ===================================================== */}
-
       <Modal
         isOpen={showEditModal}
         onClose={() => {
@@ -1216,7 +1273,6 @@ const Teachers = () => {
         size="medium"
       >
         <form onSubmit={editForm.handleSubmit} className="space-y-4">
-          {/* Username */}
           <div>
             <label className="block text-sm font-medium text-primary mb-2">
               Username <span className="text-status-error">*</span>
@@ -1237,7 +1293,6 @@ const Teachers = () => {
             )}
           </div>
 
-          {/* Teacher Name */}
           <div>
             <label className="block text-sm font-medium text-primary mb-2">
               Full Name <span className="text-status-error">*</span>
@@ -1258,7 +1313,6 @@ const Teachers = () => {
             )}
           </div>
 
-          {/* Branches - Multi-Select */}
           <div>
             <label className="block text-sm font-medium text-primary mb-2">
               Branches <span className="text-status-error">*</span>
@@ -1285,7 +1339,6 @@ const Teachers = () => {
             )}
           </div>
 
-          {/* Divisions - Multi-Select */}
           <div>
             <label className="block text-sm font-medium text-primary mb-2">
               Divisions <span className="text-status-error">*</span>
@@ -1312,7 +1365,6 @@ const Teachers = () => {
             )}
           </div>
 
-          {/* New Password (Optional) */}
           <div>
             <label className="block text-sm font-medium text-primary mb-2">
               New Password (Optional)
@@ -1331,7 +1383,6 @@ const Teachers = () => {
             </p>
           </div>
 
-          {/* Actions */}
           <div className="flex items-center gap-3 pt-4">
             <Button
               type="button"
@@ -1361,10 +1412,7 @@ const Teachers = () => {
         </form>
       </Modal>
 
-      {/* ===================================================== */}
       {/* GENERATED PASSWORD MODAL */}
-      {/* ===================================================== */}
-
       <Modal
         isOpen={showPasswordModal}
         onClose={() => {
@@ -1376,7 +1424,6 @@ const Teachers = () => {
         size="small"
       >
         <div className="space-y-4">
-          {/* Success Message */}
           <div className="flex items-start gap-3 p-4 bg-green-500/10 rounded-xl">
             <div className="p-2 rounded-lg bg-green-500">
               <Check className="w-5 h-5 text-white" />
@@ -1391,7 +1438,6 @@ const Teachers = () => {
             </div>
           </div>
 
-          {/* Password Display */}
           <div>
             <label className="block text-sm font-medium text-primary mb-2">
               Generated Password
@@ -1428,7 +1474,6 @@ const Teachers = () => {
             </div>
           </div>
 
-          {/* Warning */}
           <div className="flex items-start gap-2 p-3 bg-orange-500/10 rounded-lg">
             <AlertCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
             <div>
@@ -1442,7 +1487,6 @@ const Teachers = () => {
             </div>
           </div>
 
-          {/* Close Button */}
           <div className="pt-4">
             <Button
               variant="primary"

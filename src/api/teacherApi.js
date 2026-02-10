@@ -7,6 +7,7 @@ import { handleOperationSuccess } from "../utils/successHandler";
  * Teacher API Service
  * Handles teacher management (Admin only)
  * Supports multi-branch and multi-division assignments
+ * UPDATED: Supports soft delete (resign) functionality
  *
  * IMPORTANT: Backend expects:
  * - branch_ids: array of INTEGER branch IDs (not codes!)
@@ -14,8 +15,14 @@ import { handleOperationSuccess } from "../utils/successHandler";
  */
 
 /**
- * Get all teachers with pagination
- * @param {Object} params - { limit, offset }
+ * Get all teachers with pagination and filters
+ * @param {Object} params - Query parameters
+ * @param {number} params.limit - Items per page
+ * @param {number} params.offset - Pagination offset
+ * @param {string} params.search - Search term (optional)
+ * @param {string} params.division - Division filter (optional)
+ * @param {string} params.branch - Branch filter (optional)
+ * @param {boolean} params.include_inactive - Include resigned teachers (optional, default: false)
  * @returns {Promise} Teachers list with pagination
  */
 export const getTeachers = async (params = {}) => {
@@ -31,7 +38,7 @@ export const getTeachers = async (params = {}) => {
 /**
  * Get teacher by ID
  * @param {number} teacherId
- * @returns {Promise} Teacher data with branches and divisions arrays
+ * @returns {Promise} Teacher data with branches, divisions, is_active, and resigned_at
  */
 export const getTeacherById = async (teacherId) => {
   try {
@@ -173,9 +180,10 @@ export const updateTeacher = async (teacherId, data) => {
 };
 
 /**
- * Delete teacher
+ * Resign teacher (SOFT DELETE - marks as resigned)
+ * UPDATED: Now performs soft delete instead of hard delete
  * @param {number} teacherId
- * @returns {Promise} Delete result
+ * @returns {Promise} Resign result with success message
  */
 export const deleteTeacher = async (teacherId) => {
   try {
@@ -184,13 +192,30 @@ export const deleteTeacher = async (teacherId) => {
     );
 
     if (response.data.success) {
+      // Show custom success message for soft delete
+      const message =
+        response.data.data?.message ||
+        response.data.message ||
+        "Teacher resigned successfully";
+
       handleOperationSuccess("delete", response.data.data);
+
       return response.data;
     }
 
-    throw new Error(response.data.message || "Delete failed");
+    throw new Error(response.data.message || "Resign failed");
   } catch (error) {
-    handleApiError(error);
+    // Handle specific error for already resigned teacher
+    const backendMessage = error.response?.data?.message;
+
+    if (backendMessage && backendMessage.includes("already resigned")) {
+      handleApiError(error, {
+        customMessage: backendMessage,
+      });
+    } else {
+      handleApiError(error);
+    }
+
     throw error;
   }
 };

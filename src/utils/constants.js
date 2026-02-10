@@ -39,6 +39,22 @@ export const ROLE_LABELS = {
 };
 
 // =====================================================
+// USER STATUS (NEW - for soft delete)
+// =====================================================
+
+export const USER_STATUS = {
+  ACTIVE: "active",
+  INACTIVE: "inactive",
+  RESIGNED: "resigned",
+};
+
+export const USER_STATUS_LABELS = {
+  [USER_STATUS.ACTIVE]: "Active",
+  [USER_STATUS.INACTIVE]: "Inactive",
+  [USER_STATUS.RESIGNED]: "Resigned",
+};
+
+// =====================================================
 // BRANCHES
 // =====================================================
 
@@ -109,6 +125,10 @@ export const LOG_ACTION_TYPES = {
   MODULE_CREATED: "MODULE_CREATED",
   MODULE_UPDATED: "MODULE_UPDATED",
   MODULE_DELETED: "MODULE_DELETED",
+  TEACHER_CREATED: "TEACHER_CREATED",
+  TEACHER_UPDATED: "TEACHER_UPDATED",
+  TEACHER_DELETED: "TEACHER_DELETED",
+  TEACHER_RESIGNED: "TEACHER_RESIGNED", // NEW
 };
 
 export const LOG_ACTION_LABELS = {
@@ -120,6 +140,10 @@ export const LOG_ACTION_LABELS = {
   [LOG_ACTION_TYPES.MODULE_CREATED]: "Module Created",
   [LOG_ACTION_TYPES.MODULE_UPDATED]: "Module Updated",
   [LOG_ACTION_TYPES.MODULE_DELETED]: "Module Deleted",
+  [LOG_ACTION_TYPES.TEACHER_CREATED]: "Teacher Created",
+  [LOG_ACTION_TYPES.TEACHER_UPDATED]: "Teacher Updated",
+  [LOG_ACTION_TYPES.TEACHER_DELETED]: "Teacher Deleted",
+  [LOG_ACTION_TYPES.TEACHER_RESIGNED]: "Teacher Resigned", // NEW
 };
 
 // =====================================================
@@ -207,8 +231,21 @@ export const HTTP_STATUS = {
 };
 
 // =====================================================
-// ERROR MESSAGES
+// ERROR MESSAGES & CODES
 // =====================================================
+
+export const ERROR_CODES = {
+  VALIDATION_ERROR: "VALIDATION_ERROR",
+  NOT_FOUND: "NOT_FOUND",
+  DUPLICATE_ENTRY: "DUPLICATE_ENTRY",
+  UNAUTHORIZED: "UNAUTHORIZED",
+  FORBIDDEN: "FORBIDDEN",
+  INSUFFICIENT_STOCK: "INSUFFICIENT_STOCK",
+  INVALID_CREDENTIALS: "INVALID_CREDENTIALS",
+  SERVER_ERROR: "SERVER_ERROR",
+  DATABASE_ERROR: "DATABASE_ERROR",
+  ACCOUNT_INACTIVE: "ACCOUNT_INACTIVE", // NEW - for soft delete
+};
 
 export const ERROR_MESSAGES = {
   NETWORK_ERROR: "Network error. Please check your connection.",
@@ -220,6 +257,8 @@ export const ERROR_MESSAGES = {
   NOT_FOUND: "Resource not found.",
   CONFLICT: "This resource already exists.",
   UNKNOWN_ERROR: "An unexpected error occurred.",
+  ACCOUNT_INACTIVE:
+    "This account has been deactivated. Please contact the administrator.", // NEW
 };
 
 // =====================================================
@@ -395,6 +434,8 @@ export default {
   STORAGE_KEYS,
   USER_ROLES,
   ROLE_LABELS,
+  USER_STATUS,
+  USER_STATUS_LABELS,
   BRANCHES,
   BRANCH_LABELS,
   BRANCH_OPTIONS,
@@ -406,6 +447,7 @@ export default {
   LOG_ACTION_LABELS,
   ENDPOINTS,
   HTTP_STATUS,
+  ERROR_CODES,
   ERROR_MESSAGES,
   VALIDATION,
   DATE_FORMATS,

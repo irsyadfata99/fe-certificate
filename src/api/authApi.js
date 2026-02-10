@@ -6,6 +6,7 @@ import { handleSuccess } from "../utils/successHandler";
 /**
  * Auth API Service
  * Handles authentication operations
+ * UPDATED: Handles ACCOUNT_INACTIVE error for resigned teachers
  */
 
 /**
@@ -24,12 +25,24 @@ export const loginUser = async (credentials) => {
 
     throw new Error(response.data.message || "Login failed");
   } catch (error) {
-    // Let backend error message show through (e.g., "Invalid credentials", "User not found")
-    // Only use custom message as fallback if backend doesn't provide one
+    // Handle specific error codes from backend
+    const errorCode = error.response?.data?.errorCode;
     const backendMessage = error.response?.data?.message;
 
+    // Special handling for inactive account (resigned teacher)
+    if (errorCode === "ACCOUNT_INACTIVE") {
+      handleApiError(error, {
+        customMessage:
+          backendMessage ||
+          "This account has been deactivated. Please contact the administrator.",
+      });
+      throw error;
+    }
+
+    // Handle other errors with backend message if available
     handleApiError(error, {
-      customMessage: backendMessage || "Login failed. Please check your credentials.",
+      customMessage:
+        backendMessage || "Login failed. Please check your credentials.",
     });
     throw error;
   }
@@ -48,7 +61,19 @@ export const refreshAccessToken = async (refreshToken) => {
 
     return response.data;
   } catch (error) {
-    handleApiError(error, { showToast: false });
+    // Handle inactive account during token refresh
+    const errorCode = error.response?.data?.errorCode;
+
+    if (errorCode === "ACCOUNT_INACTIVE") {
+      // Account was deactivated during session - force logout
+      handleApiError(error, {
+        customMessage: "Your account has been deactivated.",
+        showToast: true,
+      });
+    } else {
+      handleApiError(error, { showToast: false });
+    }
+
     throw error;
   }
 };
