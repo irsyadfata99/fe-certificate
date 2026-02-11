@@ -1,20 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
-import { FiSearch, FiUser, FiX } from "react-icons/fi";
-import { searchStudentsForPrint } from "@services/printedCertificateApi";
+import { Search, User, X } from "lucide-react";
+import { searchStudentsForPrint } from "@api/printedCertApi";
 
 /**
  * StudentAutocomplete Component
  * Provides autocomplete search for student names with debouncing
  */
-const StudentAutocomplete = ({
-  value,
-  onChange,
-  onSelect,
-  branchCode,
-  error,
-  disabled,
-}) => {
+const StudentAutocomplete = ({ value, onChange, onSelect, branchCode, error, disabled }) => {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -137,24 +130,18 @@ const StudentAutocomplete = ({
           value={value}
           onChange={handleInputChange}
           placeholder="Type student name to search..."
-          className={`w-full px-4 py-2 pl-10 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-            error ? "border-red-500" : "border-gray-300"
-          }`}
+          className={`w-full px-4 py-2 pl-10 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${error ? "border-red-500" : "border-gray-300"}`}
           disabled={disabled}
           autoComplete="off"
         />
 
         {/* Search Icon */}
-        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
 
         {/* Clear Button */}
         {value && !disabled && (
-          <button
-            type="button"
-            onClick={handleClear}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-          >
-            <FiX />
+          <button type="button" onClick={handleClear} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
           </button>
         )}
 
@@ -171,17 +158,11 @@ const StudentAutocomplete = ({
         <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
           <ul className="py-1">
             {searchResults.map((student) => (
-              <li
-                key={student.id}
-                onClick={() => handleSelectStudent(student)}
-                className="px-4 py-2 hover:bg-blue-50 cursor-pointer transition-colors border-b border-gray-100 last:border-b-0"
-              >
+              <li key={student.id} onClick={() => handleSelectStudent(student)} className="px-4 py-2 hover:bg-blue-50 cursor-pointer transition-colors border-b border-gray-100 last:border-b-0">
                 <div className="flex items-center gap-2">
-                  <FiUser className="text-gray-400" />
+                  <User className="text-gray-400 w-4 h-4" />
                   <div>
-                    <p className="font-medium text-gray-800">
-                      {student.student_name}
-                    </p>
+                    <p className="font-medium text-gray-800">{student.student_name}</p>
                     <p className="text-xs text-gray-500">
                       Branch: {student.branch_code}
                       {student.branch_name && ` (${student.branch_name})`}
@@ -197,9 +178,7 @@ const StudentAutocomplete = ({
       {/* No Results Message */}
       {showDropdown && !isSearching && searchResults.length === 0 && (
         <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-3">
-          <p className="text-sm text-gray-500 text-center">
-            No students found. You can still type the name manually.
-          </p>
+          <p className="text-sm text-gray-500 text-center">No students found. You can still type the name manually.</p>
         </div>
       )}
     </div>

@@ -1,10 +1,4 @@
-import {
-  Award,
-  FileText,
-  AlertCircle,
-  CheckCircle,
-  RefreshCw,
-} from "lucide-react";
+import { Award, FileText, AlertCircle, CheckCircle, RefreshCw } from "lucide-react";
 import Button from "@components/common/Button";
 import Spinner from "@components/common/Spinner";
 import { formatNumber } from "@utils/formatters";
@@ -72,9 +66,7 @@ const StockAlert = ({ alerts, isLoading, onRefresh, className = "" }) => {
 
   if (isLoading) {
     return (
-      <div
-        className={`backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg ${className}`}
-      >
+      <div className={`backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg ${className}`}>
         <div className="flex items-center justify-center py-8">
           <Spinner size="medium" />
         </div>
@@ -88,9 +80,7 @@ const StockAlert = ({ alerts, isLoading, onRefresh, className = "" }) => {
 
   if (!alerts || alerts.length === 0) {
     return (
-      <div
-        className={`backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg ${className}`}
-      >
+      <div className={`backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg ${className}`}>
         <div className="text-center py-8">
           <p className="text-secondary">No stock data available</p>
         </div>
@@ -103,9 +93,7 @@ const StockAlert = ({ alerts, isLoading, onRefresh, className = "" }) => {
   // =====================================================
 
   return (
-    <div
-      className={`backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg ${className}`}
-    >
+    <div className={`backdrop-blur-md bg-white/40 dark:bg-white/5 rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 shadow-lg ${className}`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-primary flex items-center gap-2">
@@ -113,12 +101,7 @@ const StockAlert = ({ alerts, isLoading, onRefresh, className = "" }) => {
           {getOverallTitle()}
         </h2>
         {onRefresh && (
-          <Button
-            variant="ghost"
-            size="small"
-            onClick={onRefresh}
-            icon={<RefreshCw className="w-4 h-4" />}
-          >
+          <Button variant="ghost" size="small" onClick={onRefresh} icon={<RefreshCw className="w-4 h-4" />}>
             Refresh
           </Button>
         )}
@@ -127,26 +110,13 @@ const StockAlert = ({ alerts, isLoading, onRefresh, className = "" }) => {
       {/* Alerts Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {alerts.map((alert) => (
-          <div
-            key={alert.branchCode}
-            className={`backdrop-blur-sm bg-white/20 dark:bg-white/5 p-4 rounded-xl border transition-all hover:bg-white/30 dark:hover:bg-white/10 ${getAlertBgColor(
-              alert.level,
-            )}`}
-          >
+          <div key={alert.branchCode} className={`backdrop-blur-sm bg-white/20 dark:bg-white/5 p-4 rounded-xl border transition-all hover:bg-white/30 dark:hover:bg-white/10 ${getAlertBgColor(alert.level)}`}>
             {/* Branch Header */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div
-                  className={`p-2 rounded-lg bg-gradient-to-br ${getAlertGradient(
-                    alert.level,
-                  )} shadow-md`}
-                >
-                  {getAlertIcon(alert.level)}
-                </div>
+                <div className={`p-2 rounded-lg bg-gradient-to-br ${getAlertGradient(alert.level)} shadow-md`}>{getAlertIcon(alert.level)}</div>
                 <div>
-                  <h3 className="text-base font-semibold text-primary">
-                    {alert.branchCode}
-                  </h3>
+                  <h3 className="text-base font-semibold text-primary">{alert.branchCode}</h3>
                   <p className="text-xs text-secondary">{alert.branchName}</p>
                 </div>
               </div>
@@ -160,15 +130,7 @@ const StockAlert = ({ alerts, isLoading, onRefresh, className = "" }) => {
                   <Award className="w-4 h-4 text-yellow-500" />
                   <span className="text-sm text-secondary">Medals</span>
                 </div>
-                <span
-                  className={`text-lg font-bold ${
-                    alert.level === "critical"
-                      ? "text-red-600 dark:text-red-400"
-                      : alert.level === "warning"
-                        ? "text-yellow-600 dark:text-yellow-400"
-                        : "text-green-600 dark:text-green-400"
-                  }`}
-                >
+                <span className={`text-lg font-bold ${alert.level === "critical" ? "text-red-600 dark:text-red-400" : alert.level === "warning" ? "text-yellow-600 dark:text-yellow-400" : "text-green-600 dark:text-green-400"}`}>
                   {formatNumber(alert.medals)}
                 </span>
               </div>
@@ -179,9 +141,7 @@ const StockAlert = ({ alerts, isLoading, onRefresh, className = "" }) => {
                   <FileText className="w-4 h-4 text-blue-500" />
                   <span className="text-sm text-secondary">Certificates</span>
                 </div>
-                <span className="text-lg font-bold text-primary">
-                  {formatNumber(alert.certificates)}
-                </span>
+                <span className="text-lg font-bold text-primary">{formatNumber(alert.certificates)}</span>
               </div>
             </div>
 
@@ -203,19 +163,11 @@ const StockAlert = ({ alerts, isLoading, onRefresh, className = "" }) => {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1">
                 <FileText className="w-4 h-4 text-blue-500" />
-                <span className="font-semibold text-primary">
-                  {formatNumber(
-                    alerts.reduce((sum, a) => sum + a.certificates, 0),
-                  )}{" "}
-                  certs
-                </span>
+                <span className="font-semibold text-primary">{formatNumber(alerts.reduce((sum, a) => sum + a.certificates, 0))} certs</span>
               </div>
               <div className="flex items-center gap-1">
                 <Award className="w-4 h-4 text-yellow-500" />
-                <span className="font-semibold text-primary">
-                  {formatNumber(alerts.reduce((sum, a) => sum + a.medals, 0))}{" "}
-                  medals
-                </span>
+                <span className="font-semibold text-primary">{formatNumber(alerts.reduce((sum, a) => sum + a.medals, 0))} medals</span>
               </div>
             </div>
           </div>

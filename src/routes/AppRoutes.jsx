@@ -10,19 +10,15 @@ const Profile = lazy(() => import("../pages/auth/Profile"));
 
 // Admin pages
 const AdminDashboard = lazy(() => import("../pages/admin/Dashboard"));
-const Branches = lazy(() => import("../pages/admin/Branches")); // ← TAMBAHKAN INI
+const Branches = lazy(() => import("../pages/admin/Branches"));
 const Certificates = lazy(() => import("../pages/admin/Certificates"));
 const Teachers = lazy(() => import("../pages/admin/Teachers"));
 const Modules = lazy(() => import("../pages/admin/Modules"));
 const Logs = lazy(() => import("../pages/admin/Logs"));
 
 // Teacher pages
-const TeacherDashboard = lazy(
-  () => import("../pages/teacher/TeacherDashboard"),
-);
-const PrintCertificate = lazy(
-  () => import("../pages/teacher/PrintCertificate"),
-);
+const TeacherDashboard = lazy(() => import("../pages/teacher/TeacherDashboard"));
+const PrintCertificate = lazy(() => import("../pages/teacher/PrintCertificate"));
 const HistoryPrint = lazy(() => import("../pages/teacher/HistoryPrint"));
 
 // Loading fallback
@@ -57,7 +53,7 @@ const AppRoutes = () => {
         {/* Teacher Routes */}
         <Route element={<PrivateRoute allowedRoles={["teacher"]} />}>
           <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
-          <Route path="/print-certificate" element={<PrintCertificate />} />
+          <Route path="/teacher/print" element={<PrintCertificate />} />
           <Route path="/teacher/history" element={<HistoryPrint />} />
         </Route>
 
